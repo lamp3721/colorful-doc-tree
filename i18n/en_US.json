@@ -13,5 +13,8 @@
   "nbColors": "Notebook colors",
   "nbColorsDesc": "Manual assignment takes priority; unspecified ones are automatic",
   "auto": "Auto (hash)",
-  "noNotebooks": "(No notebooks found)"
+  "noNotebooks": "(No notebooks found)",
+  "gBasic": "Basics",
+  "gColor": "Color",
+  "preset": "Preset"
 }

@@ -265,16 +265,17 @@ class ColorfulDocTree extends siyuan.Plugin {
         const L = this.i18n || {};
         const mkSlider = (label, key, min, max, getVal, setVal, fmt) => {
             const box = document.createElement("div");
-            box.style.cssText = "width:280px";
+            box.style.cssText = "margin:6px 0";
             const head = document.createElement("div");
             head.className = "fn__flex";
-            head.style.cssText = "justify-content:space-between;margin-bottom:4px;font-size:12px;opacity:.8";
+            head.style.cssText = "justify-content:space-between;margin-bottom:2px;font-size:12px";
             const name = document.createElement("span");
             name.textContent = label;
             const val = document.createElement("b");
             head.append(name, val);
             const sl = document.createElement("input");
             sl.className = "b3-slider";
+            sl.dataset.key = key;
             sl.type = "range";
             sl.min = String(min);
             sl.max = String(max);
@@ -291,19 +292,54 @@ class ColorfulDocTree extends siyuan.Plugin {
             box.append(head, sl);
             return box;
         };
-        const setting = new siyuan.Setting({
-            width: "520px",
-            height: "auto",
-            confirmCallback: () => { this.persist(); this.applyStyle(); },
-        });
-        const styleBox = document.createElement("div");
+        const mkToggle = (label, key) => {
+            const row = document.createElement("div");
+            row.className = "fn__flex";
+            row.style.cssText = "justify-content:space-between;align-items:center;margin:6px 0";
+            const name = document.createElement("span");
+            name.textContent = label;
+            const swT = document.createElement("input");
+            swT.className = "b3-switch";
+            swT.type = "checkbox";
+            swT.checked = this.cfg[key] !== false;
+            swT.addEventListener("change", () => {
+                this.cfg[key] = swT.checked;
+                this.applyStyle();
+                this.persistSoon();
+            });
+            row.append(name, swT);
+            return row;
+        };
+        // 折叠分组（v0.4.2）：官方 addItem 会给 actionElement 强加居中定宽类，
+        // 长列表/多控件被压成一坨——整面板走单个 row 项挂全宽容器，
+        // 内部用 <details> 自绘可折叠分组
+        const container = document.createElement("div");
+        container.style.cssText = "width:100%";
+        const mkGroup = (title, open) => {
+            const det = document.createElement("details");
+            det.open = open !== false;
+            det.style.marginBottom = "8px";
+            const sum = document.createElement("summary");
+            sum.textContent = title;
+            sum.style.cssText = "cursor:pointer;font-weight:600;padding:6px 0;border-bottom:1px solid var(--b3-border-color);user-select:none";
+            const body = document.createElement("div");
+            body.style.paddingTop = "4px";
+            det.append(sum, body);
+            container.append(det);
+            return body;
+        };
+        // ── 分组一：基础 ──
+        const gBase = mkGroup(L.gBasic || "基础", true);
+        gBase.append(mkToggle(L.enabled || "启用彩色背景", "enabled"));
+        const styleRow = document.createElement("div");
+        styleRow.className = "fn__flex";
+        styleRow.style.cssText = "justify-content:space-between;align-items:center;margin:6px 0";
+        const styleName = document.createElement("span");
+        styleName.textContent = L.style || "渲染形态";
         const styleSel = document.createElement("select");
         styleSel.className = "b3-select";
         styleSel.style.width = "140px";
-        [
-            ["block", L.styleBlock || "整块背景"],
-            ["bar", L.styleBar || "行首色条"],
-        ].forEach(([v, label]) => {
+        [["block", L.styleBlock || "整块背景"], ["bar", L.styleBar || "行首色条"]].forEach(([v, label]) => {
             const opt = document.createElement("option");
             opt.value = v;
             opt.textContent = label;
@@ -315,38 +351,51 @@ class ColorfulDocTree extends siyuan.Plugin {
             if (this.cfg.enabled) this.applyStyle();
             this.persistSoon();
         });
-        styleBox.append(styleSel);
-        setting.addItem({ title: L.style || "渲染形态", actionElement: styleBox });
-        // 面板独立开关（v0.4.0）：文档树 / 标签面板
-        const mkToggle = (label, key, extra) => {
-            const box = document.createElement("div");
-            const swT = document.createElement("input");
-            swT.className = "b3-switch";
-            swT.type = "checkbox";
-            swT.checked = this.cfg[key] !== false;
-            swT.addEventListener("change", () => {
-                this.cfg[key] = swT.checked;
+        styleRow.append(styleName, styleSel);
+        gBase.append(styleRow);
+        gBase.append(mkToggle(L.treeOn || "文档树染色", "tree"));
+        // ── 分组二：颜色调整 ──
+        const gColor = mkGroup(L.gColor || "颜色调整", true);
+        gColor.append(mkSlider(L.alpha || "染色浓度", "alpha", 5, 40, () => Math.round(this.cfg.alpha * 100), (v) => { this.cfg.alpha = v / 100; }, (v) => v + "%"));
+        gColor.append(mkSlider(L.chroma || "饱和度", "chroma", 0, 20, () => Math.round(this.cfg.chroma * 100), (v) => { this.cfg.chroma = v / 100; }, (v) => v + "%"));
+        gColor.append(mkSlider(L.light || "明度", "light", 40, 80, () => this.cfg.light, (v) => { this.cfg.light = v; }, (v) => v + "%"));
+        const pRow = document.createElement("div");
+        pRow.style.marginTop = "10px";
+        const pName = document.createElement("span");
+        pName.textContent = (L.preset || "预设") + "：";
+        pName.style.fontSize = "12px";
+        pRow.append(pName);
+        [["soft", "柔和"], ["vivid", "鲜明"]].forEach(([key, label]) => {
+            const b = document.createElement("button");
+            b.className = "b3-button b3-button--outline";
+            b.style.marginLeft = "8px";
+            b.textContent = label;
+            b.onclick = () => {
+                Object.assign(this.cfg, PRESETS[key] || {});
                 this.applyStyle();
-                if (key === "tags" && swT.checked) this.scan(true);
                 this.persistSoon();
-            });
-            box.append(swT);
-            setting.addItem({ title: label, description: extra || "", actionElement: box });
-            return box;
-        };
-        mkToggle(L.treeOn === undefined ? "文档树染色" : L.treeOn, "tree");
-        // 笔记本颜色指定（v0.4.0）：override 表——内核 API 拉全部笔记本，
-        // 每本一个色相下拉（含"自动"）；改完即时重走查
+                // 刷新三个滑条：先写新 value 再触发 input（handler 读 value 同步标签）
+                ["alpha", "chroma", "light"].forEach((k) => {
+                    const sl = gColor.querySelector('[data-key="' + k + '"]');
+                    if (!sl) return;
+                    sl.value = String(k === "alpha" ? Math.round(this.cfg.alpha * 100)
+                        : k === "chroma" ? Math.round(this.cfg.chroma * 100) : this.cfg.light);
+                    sl.dispatchEvent(new Event("input"));
+                });
+            };
+            pRow.append(b);
+        });
+        gColor.append(pRow);
+        // ── 分组三：笔记本颜色 ──
+        const gNb = mkGroup((L.nbColors || "笔记本颜色") + "（" + (L.nbColorsDesc || "手动优先，其余自动") + "）", true);
         const nbBox = document.createElement("div");
-        nbBox.style.cssText = "display:flex;flex-direction:column;gap:4px;width:280px";
+        nbBox.style.cssText = "display:flex;flex-direction:column;gap:4px";
+        gNb.append(nbBox);
         fetch("/api/notebook/lsNotebooks", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
             .then((r) => r.json())
             .then((data) => {
                 const notebooks = (data && data.data && data.data.notebooks) || [];
-                if (!notebooks.length) {
-                    nbBox.textContent = L.noNotebooks || "（未获取到笔记本）";
-                    return;
-                }
+                if (!notebooks.length) { nbBox.textContent = L.noNotebooks || "（未获取到笔记本）"; return; }
                 notebooks.forEach((nb) => {
                     if (nb.closed) return;
                     const row = document.createElement("div");
@@ -365,8 +414,7 @@ class ColorfulDocTree extends siyuan.Plugin {
                         const o = document.createElement("option");
                         o.value = String(h);
                         o.textContent = HUE_NAMES[h] + " " + h + "°";
-                        const cur = this.cfg.overrides && this.cfg.overrides[nb.id];
-                        if (cur === h) o.selected = true;
+                        if (this.cfg.overrides && this.cfg.overrides[nb.id] === h) o.selected = true;
                         sel.append(o);
                     });
                     if (!(this.cfg.overrides && this.cfg.overrides[nb.id])) optAuto.selected = true;
@@ -381,59 +429,9 @@ class ColorfulDocTree extends siyuan.Plugin {
                 });
             })
             .catch(() => { nbBox.textContent = L.noNotebooks || "（未获取到笔记本）"; });
-        setting.addItem({ title: L.nbColors || "笔记本颜色", description: L.nbColorsDesc || "手动指定优先，未指定的自动分配", actionElement: nbBox });
-        const swBox = document.createElement("div");
-        const sw = document.createElement("input");
-        sw.className = "b3-switch";
-        sw.type = "checkbox";
-        sw.checked = this.cfg.enabled;
-        sw.addEventListener("change", () => {
-            const wasOn = this.cfg.enabled;
-            this.cfg.enabled = sw.checked;
-            this.persistSoon();
-            this.applyStyle();
-            if (this.cfg.enabled && !wasOn) this.startWatchers();
-            if (!this.cfg.enabled && wasOn) { this.stopWatchers(); this.clearMarks(); }
-        });
-        swBox.append(sw);
-        setting.addItem({ title: L.enabled || "启用彩色背景", actionElement: swBox });
-        setting.addItem({
-            title: L.alpha || "染色浓度",
-            actionElement: mkSlider(L.alpha || "染色浓度", "alpha", 5, 40,
-                () => Math.round(this.cfg.alpha * 100),
-                (v) => { this.cfg.alpha = v / 100; },
-                (v) => v + "%"),
-        });
-        setting.addItem({
-            title: L.chroma || "饱和度",
-            actionElement: mkSlider(L.chroma || "饱和度", "chroma", 0, 20,
-                () => Math.round(this.cfg.chroma * 100),
-                (v) => { this.cfg.chroma = v / 100; },
-                (v) => v + "%"),
-        });
-        setting.addItem({
-            title: L.light || "明度",
-            actionElement: mkSlider(L.light || "明度", "light", 40, 80,
-                () => this.cfg.light,
-                (v) => { this.cfg.light = v; },
-                (v) => v + "%"),
-        });
-        // 预设：柔和 / 鲜明（点击即三参生效，滑条状态由 confirmCallback 后重开同步）
-        const pBox = document.createElement("div");
-        const mkPreset = (key, label) => {
-            const b = document.createElement("button");
-            b.className = "b3-button b3-button--outline";
-            b.style.marginRight = "8px";
-            b.textContent = label;
-            b.onclick = () => {
-                Object.assign(this.cfg, PRESETS[key] || {});
-                this.applyStyle();
-                this.persistSoon();
-            };
-            return b;
-        };
-        pBox.append(mkPreset("soft", "柔和"), mkPreset("vivid", "鲜明"));
-        setting.addItem({ title: "预设", actionElement: pBox });
+        // 官方 Setting：单 row 项挂全宽容器（fn__block 不受 fn__size200 定宽挤压）
+        const setting = new siyuan.Setting({ width: "560px", height: "auto" });
+        setting.addItem({ title: "", direction: "row", actionElement: container });
         this.setting = setting;
     }
 
