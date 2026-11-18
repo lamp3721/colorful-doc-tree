@@ -419,6 +419,28 @@ function buildSetting(siyuan2, i18n) {
   reRow.append(reBtn);
   gBase.append(reRow);
   const gNb = mkGroup(L.nbColors || "\u7B14\u8BB0\u672C\u989C\u8272", true);
+  const resetRow = document.createElement("div");
+  resetRow.style.marginBottom = "8px";
+  const resetBtn = document.createElement("button");
+  resetBtn.className = "b3-button b3-button--outline";
+  resetBtn.style.fontSize = "12px";
+  resetBtn.textContent = L.resetAll || "\u5168\u90E8\u6062\u590D\u81EA\u52A8";
+  resetBtn.onclick = () => {
+    cfg.overrides = {};
+    applyStyle();
+    walkAllNow();
+    persistSoon();
+    const host2 = resetBtn.closest("details");
+    if (host2) {
+      const details = host2;
+      details.open = false;
+      setTimeout(() => {
+        details.open = true;
+      }, 50);
+    }
+  };
+  resetRow.append(resetBtn);
+  gNb.append(resetRow);
   const nbBox = document.createElement("div");
   nbBox.style.cssText = "display:flex;flex-direction:column;gap:4px;max-height:288px;overflow-y:auto";
   gNb.append(nbBox);
@@ -448,16 +470,16 @@ function buildSetting(siyuan2, i18n) {
       optAuto.value = "";
       optAuto.textContent = L.auto || "\u81EA\u52A8";
       quick.append(optAuto);
-      const optCustom = document.createElement("option");
-      optCustom.value = "__custom__";
-      optCustom.textContent = L.customDots || "\u81EA\u5B9A\u4E49\u2026";
-      quick.append(optCustom);
       HUES.forEach((h) => {
         const o = document.createElement("option");
         o.value = String(h);
         o.textContent = HUE_NAMES[h];
         quick.append(o);
       });
+      const optCustom = document.createElement("option");
+      optCustom.value = "__custom__";
+      optCustom.textContent = L.customDots || "\u81EA\u5B9A\u4E49\u2026";
+      quick.append(optCustom);
       const cur = cfg.overrides && cfg.overrides[nb.id];
       const hslOf = (o) => typeof o === "number" ? { h: o } : o || null;
       const applyOverride = (val) => {

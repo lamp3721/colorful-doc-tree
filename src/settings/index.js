@@ -208,6 +208,25 @@ export function buildSetting(siyuan, i18n) {
     gBase.append(reRow);
     // ── 分组三：笔记本颜色 ──
     const gNb = mkGroup(L.nbColors || "笔记本颜色", true);
+    // 批量恢复（v0.6.4）：一键清空所有 override 回自动——修复"误选自定义
+    // 全套落盘"后的恢复路径（逐本选回自动太折磨）
+    const resetRow = document.createElement("div");
+    resetRow.style.marginBottom = "8px";
+    const resetBtn = document.createElement("button");
+    resetBtn.className = "b3-button b3-button--outline";
+    resetBtn.style.fontSize = "12px";
+    resetBtn.textContent = L.resetAll || "全部恢复自动";
+    resetBtn.onclick = () => {
+        cfg.overrides = {};
+        applyStyle();
+        walkAllNow();
+        persistSoon();
+        // 刷新全部笔记本行 UI（重建面板最稳）
+        const host = resetBtn.closest("details");
+        if (host) { const details = host; details.open = false; setTimeout(() => { details.open = true; }, 50); }
+    };
+    resetRow.append(resetBtn);
+    gNb.append(resetRow);
     const nbBox = document.createElement("div");
     // 列表内部滚动上限（v0.4.3）：笔记本多时不许顶高面板——
     // max-height 12 行（每行 26px 出头）+ 内部滚动；分组外的整体
@@ -244,18 +263,18 @@ export function buildSetting(siyuan, i18n) {
                 optAuto.value = "";
                 optAuto.textContent = L.auto || "自动";
                 quick.append(optAuto);
-                // "自定义…"选项（v0.5.1）：下拉四态一表——自动/十档色/自定义…，
-                // 切换不必绕"清除"按钮
-                const optCustom = document.createElement("option");
-                optCustom.value = "__custom__";
-                optCustom.textContent = L.customDots || "自定义…";
-                quick.append(optCustom);
                 HUES.forEach((h) => {
                     const o = document.createElement("option");
                     o.value = String(h);
                     o.textContent = HUE_NAMES[h];
                     quick.append(o);
                 });
+                    // "自定义…"排最末（v0.6.4 修误触：曾排第二紧挨"自动"，
+                    // 选十档色时易误选 → 全套 override 落盘 → "全是自定义"）
+                    const optCustom = document.createElement("option");
+                    optCustom.value = "__custom__";
+                    optCustom.textContent = L.customDots || "自定义…";
+                    quick.append(optCustom);
                 const cur = cfg.overrides && cfg.overrides[nb.id];
                 const hslOf = (o) => typeof o === "number" ? { h: o } : (o || null);
                 const applyOverride = (val) => {

@@ -21,5 +21,6 @@
   "customDots": "Custom…",
   "reshuffle": "🎲 Reshuffle colors",
   "gTone": "Global tone",
-  "baseColor": "Base color"
+  "baseColor": "Base color",
+  "resetAll": "Reset all to auto"
 }
