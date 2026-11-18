@@ -1,0 +1,21 @@
+name: Release
+on:
+  push:
+    tags:
+      - "v*"
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build package.zip
+        run: |
+          mkdir -p package/colorful-doc-tree
+          cp plugin.json index.js index.css icon.png README.md README.zh-CN.md package/colorful-doc-tree/
+          cp -r i18n package/colorful-doc-tree/
+          cd package && zip -r ../package.zip colorful-doc-tree
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: package.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
