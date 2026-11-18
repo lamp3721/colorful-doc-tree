@@ -430,20 +430,23 @@ function buildSetting(siyuan2, i18n) {
     applyStyle();
     walkAllNow();
     persistSoon();
-    const host2 = resetBtn.closest("details");
-    if (host2) {
-      const details = host2;
-      details.open = false;
-      setTimeout(() => {
-        details.open = true;
-      }, 50);
-    }
+    nbBox.dispatchEvent(new CustomEvent("cftree-rows-refresh"));
   };
   resetRow.append(resetBtn);
   gNb.append(resetRow);
   const nbBox = document.createElement("div");
   nbBox.style.cssText = "display:flex;flex-direction:column;gap:4px;max-height:288px;overflow-y:auto";
   gNb.append(nbBox);
+  const rowRefreshers = [];
+  nbBox.addEventListener("cftree-rows-refresh", () => {
+    rowRefreshers.forEach((fn) => {
+      try {
+        fn();
+      } catch (e) {
+        console.error("[cftree] \u884C\u5237\u65B0\u5931\u8D25:", e);
+      }
+    });
+  });
   fetch("/api/notebook/lsNotebooks", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }).then((r) => r.json()).then((data) => {
     const notebooks = data && data.data && data.data.notebooks || [];
     if (!notebooks.length) {
@@ -617,6 +620,11 @@ function buildSetting(siyuan2, i18n) {
       });
       syncUI();
       syncCustomPanel();
+      rowRefreshers.push(() => {
+        syncFoldMark();
+        syncUI();
+        syncCustomPanel();
+      });
       quick.addEventListener("change", () => {
         if (quick.value === "__custom__") {
           if (!curOv()) {

@@ -221,9 +221,8 @@ export function buildSetting(siyuan, i18n) {
         applyStyle();
         walkAllNow();
         persistSoon();
-        // 刷新全部笔记本行 UI（重建面板最稳）
-        const host = resetBtn.closest("details");
-        if (host) { const details = host; details.open = false; setTimeout(() => { details.open = true; }, 50); }
+        // 通知全部行刷新（v0.6.5：下拉回"自动"、参数区收起）
+        nbBox.dispatchEvent(new CustomEvent("cftree-rows-refresh"));
     };
     resetRow.append(resetBtn);
     gNb.append(resetRow);
@@ -233,6 +232,13 @@ export function buildSetting(siyuan, i18n) {
     // 70vh 上限仍兜底（设置→打开的面板本身）
     nbBox.style.cssText = "display:flex;flex-direction:column;gap:4px;max-height:288px;overflow-y:auto";
     gNb.append(nbBox);
+    // 行刷新钩子（v0.6.5）：行构建时注册自己的刷新闭包，"全部恢复自动"后
+    // 派发事件逐行调用——行 UI（下拉/参数区）与 override 状态保持同步。
+    // v0.6.5 首版漏了本声明（替换未写盘）→ 行构建 TDZ 崩 → 笔记本列表空白
+    const rowRefreshers = [];
+    nbBox.addEventListener("cftree-rows-refresh", () => {
+        rowRefreshers.forEach((fn) => { try { fn(); } catch (e) { console.error("[cftree] 行刷新失败:", e); } });
+    });
     fetch("/api/notebook/lsNotebooks", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
         .then((r) => r.json())
         .then((data) => {
@@ -387,6 +393,9 @@ export function buildSetting(siyuan, i18n) {
                 });
                 syncUI();
                 syncCustomPanel();
+                // 行刷新钩子注册（v0.6.5）："全部恢复自动"清空 override 后
+                // 逐行回调刷新下拉/参数区显示
+                rowRefreshers.push(() => { syncFoldMark(); syncUI(); syncCustomPanel(); });
                 // 唯一的下拉 change 处理（v0.5.1 曾短暂存在新旧两个监听器：
                 // 旧版先跑 parseInt("__custom__")=NaN 写坏 override）
                 quick.addEventListener("change", () => {
