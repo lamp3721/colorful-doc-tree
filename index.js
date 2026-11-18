@@ -109,11 +109,12 @@ class ColorfulDocTree extends siyuan.Plugin {
             "}\n" +
             // —— 形态二：行首色条（3px 竖线，同笔记本连续成轨、块间留缝；
             //     细条不吃浓度透明度——低 alpha 下不可见，直接实色，明度/饱和仍可调）——
+            //     端头不圆角：3px 条上任何圆角都占宽度过半，观感成"半圆帽"（v0.3.1 修）；
+            //     接缝 -1px 全高叠接（与圆角叠用时两头缺角、不圆润），端头留缝即可
             'html[data-cftree="on"][data-cftreestyle="bar"] .file-tree .b3-list-item[data-nb-walked]::after {' +
             '  content: ""; position: absolute; z-index: -1; pointer-events: none;' +
             "  width: 3px; inset-inline: 0 auto; inset-block: -1px;" +
             "  background: oklch(" + this.cfg.light + "% " + this.cfg.chroma + " var(--nb-h, 231));" +
-            "  border-radius: 2px;" +
             "}\n" +
             'html[data-cftree="on"][data-cftreestyle="bar"] .file-tree .b3-list-item[data-nb-block-start]::after {' +
             "  top: 3px;" +
