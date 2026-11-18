@@ -504,11 +504,75 @@ class ColorfulDocTree extends siyuan.Plugin {
                         // 全局 14% 透明度稀释了色板色，违背"我就要这个色"的语义）
                         applyOverride({ h: Math.round(h), s: Math.round(ss * 100), l: Math.round(ll * 100), a: 100 });
                         syncUI();
+                        syncCustomPanel();
                     });
+                    // v0.4.9：自定义色专属参数区——选了色板色才展开，三滑条
+                    // （浓度/饱和/明度）各调各的，改的是这本的 override，
+                    // 即时生效；快捷色/自动时收起
+                    const customBox = document.createElement("div");
+                    customBox.style.cssText = "display:none;padding:2px 0 6px 0;margin-top:2px;border-top:1px dashed var(--b3-border-color)";
+                    const mkNbSlider = (label, key, min, max, getVal, setVal, fmt) => {
+                        const box = document.createElement("div");
+                        box.style.cssText = "display:flex;align-items:center;gap:6px;margin:3px 0";
+                        const nm = document.createElement("span");
+                        nm.style.cssText = "font-size:12px;width:56px;flex-shrink:0;opacity:.8";
+                        nm.textContent = label;
+                        const sl = document.createElement("input");
+                        sl.type = "range";
+                        sl.className = "b3-slider";
+                        sl.min = String(min);
+                        sl.max = String(max);
+                        sl.style.flex = "1";
+                        const vb = document.createElement("b");
+                        vb.style.cssText = "font-size:12px;width:38px;text-align:right";
+                        const refresh = () => { const v = getVal(); sl.value = String(v); vb.textContent = fmt(v); };
+                        sl.addEventListener("input", () => {
+                            setVal(parseInt(sl.value, 10));
+                            vb.textContent = fmt(parseInt(sl.value, 10));
+                            this.persistSoon();
+                            this.panelObservers.forEach((po) => this.walkWindow(po.panel));
+                        });
+                        refresh();
+                        box.append(nm, sl, vb);
+                        return box;
+                    };
+                    const curOv = () => {
+                        const o = this.cfg.overrides && this.cfg.overrides[nb.id];
+                        if (!o || typeof o === "number" || typeof o.s !== "number") return null;
+                        return o;
+                    };
+                    const sAlpha = mkNbSlider(L.alpha || "浓度", "alpha", 5, 100,
+                        () => { const o = curOv(); return o && typeof o.a === "number" ? o.a : 100; },
+                        (v) => { const o = curOv(); if (o) o.a = v; },
+                        (v) => v + "%");
+                    const sChroma = mkNbSlider(L.chroma || "饱和", "chroma", 0, 100,
+                        () => { const o = curOv(); return o ? o.s : 0; },
+                        (v) => { const o = curOv(); if (o) o.s = v; },
+                        (v) => v + "%");
+                    const sLight = mkNbSlider(L.light || "明度", "light", 20, 90,
+                        () => { const o = curOv(); return o ? o.l : 62; },
+                        (v) => { const o = curOv(); if (o) o.l = v; },
+                        (v) => v + "%");
+                    customBox.append(sAlpha, sChroma, sLight);
+                    const syncCustomPanel = () => {
+                        const o = curOv();
+                        customBox.style.display = o ? "block" : "none";
+                        if (o) {
+                            [sAlpha, sChroma, sLight].forEach((slBox) => {
+                                const sl = slBox.querySelector("input");
+                                sl.dispatchEvent(new Event("input"));
+                            });
+                            // dispatch input 会写回 curOv()——刷新显示足够
+                        }
+                    };
                     syncUI();
+                    syncCustomPanel();
+                    quick.addEventListener("change", () => { setTimeout(syncCustomPanel, 0); });
                     ctrl.append(quick, swatch);
                     row.append(name, ctrl);
-                    nbBox.append(row);
+                    const wrap = document.createElement("div");
+                    wrap.append(row, customBox);
+                    nbBox.append(wrap);
                 });
             })
             .catch(() => { nbBox.textContent = L.noNotebooks || "（未获取到笔记本）"; });
