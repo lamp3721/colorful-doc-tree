@@ -372,7 +372,7 @@ function buildSetting(siyuan2, i18n) {
   const sChroma = mkSlider(L.chroma || "\u9971\u548C\u5EA6", "chroma", 0, 60, () => Math.round(cfg.chroma * 100), (v) => {
     cfg.chroma = v / 100;
   }, (v) => v + "%");
-  const sLight = mkSlider(L.light || "\u660E\u5EA6", "light", 30, 85, () => cfg.light, (v) => {
+  const sLight = mkSlider(L.light || "\u660E\u5EA6", "light", 0, 100, () => cfg.light, (v) => {
     cfg.light = v;
   }, (v) => v + "%");
   const syncToneSliders = () => {
@@ -580,8 +580,8 @@ function buildSetting(siyuan2, i18n) {
       const sLight2 = mkNbSlider(
         L.light || "\u660E\u5EA6",
         "light",
-        20,
-        90,
+        0,
+        100,
         () => {
           const o = curOv();
           return o ? o.l : 62;

@@ -155,7 +155,7 @@ export function buildSetting(siyuan, i18n) {
     toneSwatch.value = cfg.__baseHex || hslToHex(140, cfg.chroma, cfg.light / 100);
     const sAlpha = mkSlider(L.alpha || "染色浓度", "alpha", 5, 40, () => Math.round(cfg.alpha * 100), (v) => { cfg.alpha = v / 100; }, (v) => v + "%");
     const sChroma = mkSlider(L.chroma || "饱和度", "chroma", 0, 60, () => Math.round(cfg.chroma * 100), (v) => { cfg.chroma = v / 100; }, (v) => v + "%");
-    const sLight = mkSlider(L.light || "明度", "light", 30, 85, () => cfg.light, (v) => { cfg.light = v; }, (v) => v + "%");
+    const sLight = mkSlider(L.light || "明度", "light", 0, 100, () => cfg.light, (v) => { cfg.light = v; }, (v) => v + "%");
     const syncToneSliders = () => {
         // 只刷显示，不 dispatch input（handler 的 setVal 会用滑条旧值写回 cfg，
         // 把色板刚写的新 chroma/light 冲掉——v0.6.1 自反馈 bug：
@@ -363,7 +363,7 @@ export function buildSetting(siyuan, i18n) {
                     () => { const o = curOv(); return o ? o.s : 0; },
                     (v) => { const o = curOv(); if (o) o.s = v; },
                     (v) => v + "%");
-                const sLight = mkNbSlider(L.light || "明度", "light", 20, 90,
+                const sLight = mkNbSlider(L.light || "明度", "light", 0, 100,
                     () => { const o = curOv(); return o ? o.l : 62; },
                     (v) => { const o = curOv(); if (o) o.l = v; },
                     (v) => v + "%");
