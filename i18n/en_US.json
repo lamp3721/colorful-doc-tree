@@ -16,5 +16,7 @@
   "noNotebooks": "(No notebooks found)",
   "gBasic": "Basics",
   "gColor": "Color",
-  "preset": "Preset"
+  "preset": "Preset",
+  "custom": "Custom",
+  "clearCustom": "Clear custom"
 }

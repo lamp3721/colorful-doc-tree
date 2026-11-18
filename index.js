@@ -465,6 +465,12 @@ class ColorfulDocTree extends siyuan.Plugin {
                     // （s/l 走全局滑条，跟整体风格协调）
                     const ctrl = document.createElement("div");
                     ctrl.style.cssText = "display:flex;align-items:center;gap:4px";
+                    // v0.4.12：自定义色时不再显示快捷色下拉（"自动(哈希)"占位
+                    // 对已自定义的条目是误导）——改显示"自定义"徽标 + swatch；
+                    // 清除自定义的入口=参数区内的"清除"按钮
+                    const customBadge = document.createElement("span");
+                    customBadge.textContent = L.custom || "自定义";
+                    customBadge.style.cssText = "display:none;font-size:12px;padding:1px 6px;border:1px solid var(--b3-border-color);border-radius:3px;color:var(--b3-theme-on-surface-light)";
                     const swatch = document.createElement("input");
                     swatch.type = "color";
                     swatch.className = "b3-color-picker";
@@ -492,6 +498,9 @@ class ColorfulDocTree extends siyuan.Plugin {
                     };
                     const syncUI = () => {
                         const c = hslOf(this.cfg.overrides && this.cfg.overrides[nb.id]);
+                        const isCustom = !!(c && typeof c === "object" && c.s !== undefined);
+                        customBadge.style.display = isCustom ? "inline-block" : "none";
+                        quick.style.display = isCustom ? "none" : "inline-block";
                         // 快捷下拉只在"纯色相 override"（十档色）时显示选中；色板值以 swatch 呈现
                         quick.value = (c && typeof c === "object" && c.h !== undefined && c.s === undefined) ? String(c.h) : "";
                         // swatch 初值：override 的 HSL → hex；无 override 显示全局公式色
@@ -512,6 +521,7 @@ class ColorfulDocTree extends siyuan.Plugin {
                         applyOverride({ h: Math.round(h), s: Math.round(ss * 100), l: Math.round(ll * 100), a: 100 });
                         syncUI();
                         syncCustomPanel();
+                        if (typeof syncFoldMark === "function") syncFoldMark();
                     });
                     // v0.4.11：自定义色专属参数区可折叠——点条目行切换展开/收起
                     // （v0.4.9 是选色即常驻展开，用户要能收起）。仅自定义色时可折，
@@ -561,7 +571,18 @@ class ColorfulDocTree extends siyuan.Plugin {
                         () => { const o = curOv(); return o ? o.l : 62; },
                         (v) => { const o = curOv(); if (o) o.l = v; },
                         (v) => v + "%");
-                    customBox.append(sAlpha, sChroma, sLight);
+                    const clearBtn = document.createElement("button");
+                    clearBtn.className = "b3-button b3-button--outline";
+                    clearBtn.style.cssText = "font-size:12px;margin-top:4px";
+                    clearBtn.textContent = L.clearCustom || "清除自定义";
+                    clearBtn.onclick = (ev) => {
+                        ev.stopPropagation();
+                        applyOverride(null);
+                        syncUI();
+                        syncCustomPanel();
+                        syncFoldMark();
+                    };
+                    customBox.append(sAlpha, sChroma, sLight, clearBtn);
                     const syncCustomPanel = () => {
                         const o = curOv();
                         // 无自定义色：参数区整体隐藏、折叠态复位；
@@ -584,14 +605,14 @@ class ColorfulDocTree extends siyuan.Plugin {
                     });
                     syncUI();
                     syncCustomPanel();
-                    quick.addEventListener("change", () => { setTimeout(syncCustomPanel, 0); });
+                    quick.addEventListener("change", () => { setTimeout(() => { syncUI(); syncCustomPanel(); }, 0); });
                     // 可折叠视觉暗示：有自定义色时条目名前加 ▸/▾
                     const syncFoldMark = () => {
                         name.textContent = (curOv() ? (folded.on ? "▸ " : "▾ ") : "") + nb.name;
                     };
                     row.addEventListener("click", () => setTimeout(syncFoldMark, 0));
                     syncFoldMark();
-                    ctrl.append(quick, swatch);
+                    ctrl.append(quick, customBadge, swatch);
                     row.append(name, ctrl);
                     const wrap = document.createElement("div");
                     wrap.append(row, customBox);

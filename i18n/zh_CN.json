@@ -16,5 +16,7 @@
   "noNotebooks": "（未获取到笔记本）",
   "gBasic": "基础",
   "gColor": "颜色调整",
-  "preset": "预设"
+  "preset": "预设",
+  "custom": "自定义",
+  "clearCustom": "清除自定义"
 }
