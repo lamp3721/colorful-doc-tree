@@ -9,6 +9,10 @@ permissions:
 jobs:
   package:
     runs-on: ubuntu-latest
+    # 宿主守卫：只在 GitHub 执行——gitea 的 runner 也认 .github/workflows/，
+    # 内网推 tag 会误触发（无 GitHub 环境，纯浪费 runner）。gitea 的
+    # github.server_url 是自身地址，恒不等于 GitHub
+    if: github.server_url == 'https://github.com'
     steps:
       - uses: actions/checkout@v4
       - name: Build package.zip
