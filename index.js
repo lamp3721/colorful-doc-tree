@@ -30,6 +30,27 @@ const HUES = [15, 45, 90, 140, 170, 200, 230, 262, 298, 335];
 const DEFAULTS = { enabled: true, alpha: 0.14, chroma: 0.12, light: 62, style: "block", tree: true };
 // overrides：笔记本 id → 色相数字（HUES 档位）——手动指定优先于哈希；
 // 哈希管"默认好看"，override 管"我就要这个色"
+// HSL ↔ HEX 工具（v0.4.4 自定义色板）
+function hslToHex(h, s, l) {
+    const a = s * Math.min(l, 1 - l);
+    const f = (n) => { const k = (n + h / 30) % 12; const c = l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)); return Math.round(255 * c).toString(16).padStart(2, "0"); };
+    return "#" + f(0) + f(8) + f(4);
+}
+function hexToHsl(hex) {
+    const r = parseInt(hex.slice(1, 3), 16) / 255, g = parseInt(hex.slice(3, 5), 16) / 255, b = parseInt(hex.slice(5, 7), 16) / 255;
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+    let h = 0, s = 0;
+    const l = (mx + mn) / 2;
+    if (mx !== mn) {
+        const d = mx - mn;
+        s = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn);
+        if (mx === r) h = ((g - b) / d + (g < b ? 6 : 0));
+        else if (mx === g) h = ((b - r) / d + 2);
+        else h = ((r - g) / d + 4);
+        h *= 60;
+    }
+    return { h: h < 0 ? h + 360 : h, ss: s, ll: l };
+}
 const HUE_NAMES = { 15: "橙", 45: "黄", 90: "黄绿", 140: "绿", 170: "青绿", 200: "青", 230: "蓝", 262: "靛", 298: "紫", 335: "玫红" };
 // 预设：柔和（低饱和淡染）/ 鲜明（高饱和浓染）
 const PRESETS = { soft: { alpha: 0.12, chroma: 0.08, light: 64 }, vivid: { alpha: 0.24, chroma: 0.15, light: 60 } };
@@ -99,7 +120,7 @@ class ColorfulDocTree extends siyuan.Plugin {
             // —— 形态一：整块背景（跨行距缝 + 块首/末圆角 + 块间留缝）——
             'html[data-cftree="on"][data-cftreestyle="block"] .file-tree.sy__file .b3-list-item[data-nb-walked]::after {' +
             '  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;' +
-            "  background: oklch(" + this.cfg.light + "% " + this.cfg.chroma + " var(--nb-h, 231) / " + a + ");" +
+            "  background: oklch(var(--nb-l, " + this.cfg.light + ")% var(--nb-s, " + this.cfg.chroma + ") var(--nb-h, 231) / " + a + ");" +
             "}\n" +
             'html[data-cftree="on"][data-cftreestyle="block"] .file-tree.sy__file .b3-list-item[data-nb-walked]::after {' +
             "  inset-block: -1px;" +
@@ -119,7 +140,7 @@ class ColorfulDocTree extends siyuan.Plugin {
             'html[data-cftree="on"][data-cftreestyle="bar"] .file-tree .b3-list-item[data-nb-walked]::after {' +
             '  content: ""; position: absolute; z-index: -1; pointer-events: none;' +
             "  width: 3px; inset-inline: 0 auto; inset-block: -1px;" +
-            "  background: oklch(" + this.cfg.light + "% " + this.cfg.chroma + " var(--nb-h, 231));" +
+            "  background: oklch(var(--nb-l, " + this.cfg.light + ")% var(--nb-s, " + this.cfg.chroma + ") var(--nb-h, 231));" +
             "}\n" +
             // 轨道顶点（块首行）：上端外圆角——顶左角收，顶右角保持直边贴行首
             'html[data-cftree="on"][data-cftreestyle="bar"] .file-tree .b3-list-item[data-nb-block-start]::after {' +
@@ -209,17 +230,30 @@ class ColorfulDocTree extends siyuan.Plugin {
         for (let i = 0; i < valid.length; i++) {
             const li = valid[i];
             if (isNb(li)) {
-                // override 优先（v0.4.0）：手动指定的笔记本直接用；未指定走哈希+相邻防撞
+                // override 优先（v0.4.0；v0.4.4 值域升级为 HSL 对象）：
+                // 手动指定的笔记本直接用；未指定走哈希+相邻防撞。
+                // override 可带自定义明度/饱和（{h,s,l}），只填 h 时沿用全局滑条
                 const nbId = li.getAttribute("data-node-id") || li.getAttribute("data-tree-key") || "";
-                let h = this.cfg.overrides && Object.prototype.hasOwnProperty.call(this.cfg.overrides, nbId)
-                    ? this.cfg.overrides[nbId]
-                    : null;
-                if (h === null || h === undefined) {
+                const ov = this.cfg.overrides && Object.prototype.hasOwnProperty.call(this.cfg.overrides, nbId)
+                    ? this.cfg.overrides[nbId] : null;
+                let h;
+                if (ov) {
+                    const o = typeof ov === "number" ? { h: ov } : ov;
+                    h = o.h;
+                    li.style.setProperty("--nb-s", String(o.s));
+                    li.style.setProperty("--nb-l", String(o.l));
+                } else {
                     h = hashHue(li.getAttribute("data-tree-key") || "");
                     if (h === prevHue) h = HUES[(HUES.indexOf(h) + 1) % HUES.length];
                 }
                 hue = h;
                 prevHue = h;
+            }
+
+            const ovHere = this.cfg.overrides && this.cfg.overrides[li.getAttribute("data-node-id") || ""];
+            if (!ovHere) {
+                li.style.removeProperty("--nb-s");
+                li.style.removeProperty("--nb-l");
             }
             this.setHue(li, hue);
             // 块边界：首=notebook 行；末=下一有效行是 notebook 行或走到尾
@@ -404,30 +438,61 @@ class ColorfulDocTree extends siyuan.Plugin {
                     const row = document.createElement("div");
                     row.style.cssText = "display:flex;justify-content:space-between;align-items:center";
                     const name = document.createElement("span");
-                    name.style.cssText = "font-size:12px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
+                    name.style.cssText = "font-size:12px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
                     name.textContent = nb.name;
-                    const sel = document.createElement("select");
-                    sel.className = "b3-select";
-                    sel.style.width = "110px";
+                    // v0.4.4：任意颜色——原生色板 + 十档快捷色 + 自动。
+                    // 存 HSL（{h,s,l}）：色板挑的色完整还原；十档快捷色只存 {h}
+                    // （s/l 走全局滑条，跟整体风格协调）
+                    const ctrl = document.createElement("div");
+                    ctrl.style.cssText = "display:flex;align-items:center;gap:4px";
+                    const swatch = document.createElement("input");
+                    swatch.type = "color";
+                    swatch.className = "b3-color-picker";
+                    swatch.style.cssText = "width:26px;height:22px;padding:0;border:1px solid var(--b3-border-color);background:transparent;cursor:pointer";
+                    const quick = document.createElement("select");
+                    quick.className = "b3-select";
+                    quick.style.cssText = "width:90px;font-size:12px";
                     const optAuto = document.createElement("option");
                     optAuto.value = "";
-                    optAuto.textContent = L.auto || "自动（哈希）";
-                    sel.append(optAuto);
+                    optAuto.textContent = L.auto || "自动";
+                    quick.append(optAuto);
                     HUES.forEach((h) => {
                         const o = document.createElement("option");
                         o.value = String(h);
-                        o.textContent = HUE_NAMES[h] + " " + h + "°";
-                        if (this.cfg.overrides && this.cfg.overrides[nb.id] === h) o.selected = true;
-                        sel.append(o);
+                        o.textContent = HUE_NAMES[h];
+                        quick.append(o);
                     });
-                    if (!(this.cfg.overrides && this.cfg.overrides[nb.id])) optAuto.selected = true;
-                    sel.addEventListener("change", () => {
-                        if (sel.value === "") delete this.cfg.overrides[nb.id];
-                        else this.cfg.overrides[nb.id] = parseInt(sel.value, 10);
+                    const cur = this.cfg.overrides && this.cfg.overrides[nb.id];
+                    const hslOf = (o) => typeof o === "number" ? { h: o } : (o || null);
+                    const applyOverride = (val) => {
+                        if (val === null) delete this.cfg.overrides[nb.id];
+                        else this.cfg.overrides[nb.id] = val;
                         this.persistSoon();
                         this.panelObservers.forEach((po) => this.walkWindow(po.panel));
+                    };
+                    const syncUI = () => {
+                        const c = hslOf(this.cfg.overrides && this.cfg.overrides[nb.id]);
+                        // 快捷下拉只在"纯色相 override"（十档色）时显示选中；色板值以 swatch 呈现
+                        quick.value = (c && typeof c === "object" && c.h !== undefined && c.s === undefined) ? String(c.h) : "";
+                        // swatch 初值：override 的 HSL → hex；无 override 显示全局公式色
+                        const hh = c ? c.h : hashHue(nb.id);
+                        const ss = c && c.s !== undefined ? c.s : Math.round(this.cfg.chroma * 100);
+                        const ll = c && c.l !== undefined ? c.l : this.cfg.light;
+                        swatch.value = hslToHex(hh, ss / 100, ll / 100);
+                    };
+                    quick.addEventListener("change", () => {
+                        if (quick.value === "") applyOverride(null);
+                        else applyOverride({ h: parseInt(quick.value, 10) });
+                        syncUI();
                     });
-                    row.append(name, sel);
+                    swatch.addEventListener("input", () => {
+                        const { h, ss, ll } = hexToHsl(swatch.value);
+                        applyOverride({ h: Math.round(h), s: Math.round(ss * 100), l: Math.round(ll * 100) });
+                        syncUI();
+                    });
+                    syncUI();
+                    ctrl.append(quick, swatch);
+                    row.append(name, ctrl);
                     nbBox.append(row);
                 });
             })
