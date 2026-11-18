@@ -4,7 +4,8 @@
   "description": "彩色文档树：按笔记本一色染底",
   "main": "index.js",
   "scripts": {
-    "build": "node build.js"
+    "build": "node build.js",
+    "pack": "node pack.mjs"
   },
   "keywords": [],
   "author": "lamp3721",

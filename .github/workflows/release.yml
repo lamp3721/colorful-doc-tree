@@ -15,12 +15,10 @@ jobs:
     if: github.server_url == 'https://github.com'
     steps:
       - uses: actions/checkout@v4
-      - name: Build package.zip
+      - name: Build package.zip（与本地同命令——单一打包事实源）
         run: |
-          mkdir -p package/colorful-doc-tree
-          cp plugin.json index.js index.css icon.png preview.png README.md README.zh-CN.md package/colorful-doc-tree/
-          cp -r i18n package/colorful-doc-tree/
-          cd package && zip -r ../package.zip colorful-doc-tree
+          npm install --no-audit --no-fund
+          npm run pack
       - uses: softprops/action-gh-release@v2
         with:
           files: package.zip
