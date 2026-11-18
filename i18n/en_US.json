@@ -22,5 +22,7 @@
   "reshuffle": "🎲 Reshuffle colors",
   "gTone": "Global tone",
   "baseColor": "Base color",
-  "resetAll": "Reset all to auto"
+  "resetAll": "Reset all to auto",
+  "soft": "Soft",
+  "vivid": "Vivid"
 }

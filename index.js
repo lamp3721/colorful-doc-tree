@@ -394,6 +394,31 @@ function buildSetting(siyuan2, i18n) {
   });
   toneRow.append(toneName, toneSwatch);
   gTone.append(toneRow, sAlpha, sChroma, sLight);
+  const TONE_PRESETS = {
+    soft: { alpha: 0.12, chroma: 0.08, light: 64 },
+    vivid: { alpha: 0.24, chroma: 0.16, light: 58 }
+  };
+  const tpRow = document.createElement("div");
+  tpRow.style.cssText = "margin-top:6px";
+  const tpName = document.createElement("span");
+  tpName.style.cssText = "font-size:12px;opacity:.8";
+  tpName.textContent = (L.preset || "\u9884\u8BBE") + "\uFF1A";
+  tpRow.append(tpName);
+  Object.keys(TONE_PRESETS).forEach((key) => {
+    const b = document.createElement("button");
+    b.className = "b3-button b3-button--outline";
+    b.style.marginLeft = "8px";
+    b.textContent = key === "soft" ? L.soft || "\u67D4\u548C" : L.vivid || "\u9C9C\u660E";
+    b.onclick = () => {
+      Object.assign(cfg, TONE_PRESETS[key]);
+      applyStyle();
+      persistSoon();
+      refreshPreview();
+      syncToneSliders();
+    };
+    tpRow.append(b);
+  });
+  gTone.append(tpRow);
   gBase.parentNode.insertBefore(gTone.parentElement, gBase.nextSibling);
   [sAlpha, sChroma, sLight].forEach((box) => {
     const sl = box.querySelector("input");

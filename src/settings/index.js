@@ -181,6 +181,33 @@ export function buildSetting(siyuan, i18n) {
     });
     toneRow.append(toneName, toneSwatch);
     gTone.append(toneRow, sAlpha, sChroma, sLight);
+    // 预设（v0.6.7）：柔和/鲜明——基色+三参数整套，一键即达（在色板选好
+    // 基色后用预设快速试质感，滑条同步显示，想微调继续拖）
+    const TONE_PRESETS = {
+        soft:  { alpha: 0.12, chroma: 0.08, light: 64 },
+        vivid: { alpha: 0.24, chroma: 0.16, light: 58 },
+    };
+    const tpRow = document.createElement("div");
+    tpRow.style.cssText = "margin-top:6px";
+    const tpName = document.createElement("span");
+    tpName.style.cssText = "font-size:12px;opacity:.8";
+    tpName.textContent = (L.preset || "预设") + "：";
+    tpRow.append(tpName);
+    Object.keys(TONE_PRESETS).forEach((key) => {
+        const b = document.createElement("button");
+        b.className = "b3-button b3-button--outline";
+        b.style.marginLeft = "8px";
+        b.textContent = key === "soft" ? (L.soft || "柔和") : (L.vivid || "鲜明");
+        b.onclick = () => {
+            Object.assign(cfg, TONE_PRESETS[key]);   // 基色保留（用户选的），只调质感三参
+            applyStyle();
+            persistSoon();
+            refreshPreview();
+            syncToneSliders();
+        };
+        tpRow.append(b);
+    });
+    gTone.append(tpRow);
     // mkGroup 返回 body（details 的内容容器）——移动要移父级 details，否则
     // body 被从 details 抽走、组变空壳（v0.6.1 排查实录）
     gBase.parentNode.insertBefore(gTone.parentElement, gBase.nextSibling);
