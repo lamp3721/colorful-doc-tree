@@ -51,9 +51,15 @@ function walkTree(panel) {
             if (ov) {
                 cur = typeof ov === "number" ? { h: ov } : ov;
             } else {
-                // shuffleSeed：'重新分配'按钮换 seed → 哈希输入变 → 全部重洗
-                const seedKey = li.getAttribute("data-tree-key") || "" + (cfg.shuffleSeed ? "#" + cfg.shuffleSeed : "");
-                cur = { h: hashHue(seedKey) };
+                // shuffleSeed：'重新分配'换 seed 重洗；__baseHue（全局基色，v0.6.1）：
+                // 设了基色 → 十档色相围绕基色旋转（相邻档 ±30°，配色跟主题/基色走）；
+                // 未设 → 纯哈希档位
+                const seedKey = (li.getAttribute("data-tree-key") || "") + (cfg.shuffleSeed ? "#" + cfg.shuffleSeed : "");
+                let h = hashHue(seedKey);
+                if (typeof cfg.__baseHue === "number") {
+                    h = (cfg.__baseHue + (HUES.indexOf(h) - HUES.indexOf(HUES.reduce((a, b) => Math.abs(b - cfg.__baseHue) < Math.abs(a - cfg.__baseHue) ? b : a, HUES[0])) + 5) * 30 + 36000) % 360;
+                }
+                cur = { h: h };
                 if (cur.h === prevHue) cur.h = HUES[(HUES.indexOf(cur.h) + 1) % HUES.length];
             }
             prevHue = cur.h;

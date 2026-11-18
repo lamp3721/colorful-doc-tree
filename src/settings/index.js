@@ -138,6 +138,60 @@ export function buildSetting(siyuan, i18n) {
     gBase.append(alphaBox);
     const alphaSl = alphaBox.querySelector("input");
     if (alphaSl) alphaSl.addEventListener("input", refreshPreview);
+    // ── 全局色调（v0.6.1：色板+三滑条协作）──
+    // v0.5.6 教训：选色后滑条不跟（起点断裂，选蓝出灰蓝）；v0.6.0 错误：
+    // 矫枉过正砍滑条（按主题配色需要三参精修）。正解：色板选色把 hexToHsl
+    // 的 s/l 写回 chroma/light（滑条联动到正确起点），滑条再微调质感；
+    // 基色同时记录 __baseHue（全局色相——哈希分配围绕它旋转，配色跟主题走）。
+    const gTone = mkGroup(L.gTone || "全局色调", false);   // 默认收起：装上即用，精调再展开
+    const toneRow = document.createElement("div");
+    toneRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin:6px 0";
+    const toneName = document.createElement("span");
+    toneName.textContent = L.baseColor || "基色";
+    const toneSwatch = document.createElement("input");
+    toneSwatch.type = "color";
+    toneSwatch.className = "b3-color-picker";
+    toneSwatch.style.cssText = "width:52px;height:26px;padding:0;border:1px solid var(--b3-border-color);background:transparent;cursor:pointer";
+    toneSwatch.value = cfg.__baseHex || hslToHex(140, cfg.chroma, cfg.light / 100);
+    const sAlpha = mkSlider(L.alpha || "染色浓度", "alpha", 5, 40, () => Math.round(cfg.alpha * 100), (v) => { cfg.alpha = v / 100; }, (v) => v + "%");
+    const sChroma = mkSlider(L.chroma || "饱和度", "chroma", 0, 60, () => Math.round(cfg.chroma * 100), (v) => { cfg.chroma = v / 100; }, (v) => v + "%");
+    const sLight = mkSlider(L.light || "明度", "light", 30, 85, () => cfg.light, (v) => { cfg.light = v; }, (v) => v + "%");
+    const syncToneSliders = () => {
+        // 只刷显示，不 dispatch input（handler 的 setVal 会用滑条旧值写回 cfg，
+        // 把色板刚写的新 chroma/light 冲掉——v0.6.1 自反馈 bug：
+        // baseHue 落盘了而 chroma/light 保持旧值的真凶）
+        const vOf = (key) => key === "alpha" ? Math.round(cfg.alpha * 100)
+            : key === "chroma" ? Math.round(cfg.chroma * 100) : cfg.light;
+        [["alpha", v => v + "%"], ["chroma", v => v + "%"], ["light", v => v + "%"]].forEach(([key]) => {
+            const box = key === "alpha" ? sAlpha : key === "chroma" ? sChroma : sLight;
+            const sl = box.querySelector("input");
+            const vb = box.querySelector("b");
+            const v = vOf(key);
+            sl.value = String(v);
+            if (vb) vb.textContent = v + "%";
+        });
+    };
+    toneSwatch.addEventListener("input", () => {
+        const { h, ss, ll } = hexToHsl(toneSwatch.value);
+        cfg.__baseHex = toneSwatch.value;
+        cfg.__baseHue = Math.round(h);
+        cfg.chroma = Math.round(ss * 100) / 100;
+        cfg.light = Math.round(ll * 100);
+        applyStyle();
+        walkAllNow();
+        persistSoon();
+        refreshPreview();
+        syncToneSliders();
+    });
+    toneRow.append(toneName, toneSwatch);
+    gTone.append(toneRow, sAlpha, sChroma, sLight);
+    // mkGroup 返回 body（details 的内容容器）——移动要移父级 details，否则
+    // body 被从 details 抽走、组变空壳（v0.6.1 排查实录）
+    gBase.parentNode.insertBefore(gTone.parentElement, gBase.nextSibling);
+    [sAlpha, sChroma, sLight].forEach((box) => {
+        const sl = box.querySelector("input");
+        if (sl) sl.addEventListener("input", refreshPreview);
+    });
     // 重新分配（真实诉求直达：不满意随机配色，重洗一轮——换 seed）
     const reRow = document.createElement("div");
     reRow.style.marginTop = "8px";

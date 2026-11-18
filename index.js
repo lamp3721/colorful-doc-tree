@@ -134,8 +134,12 @@ function walkTree(panel) {
       if (ov) {
         cur = typeof ov === "number" ? { h: ov } : ov;
       } else {
-        const seedKey = li.getAttribute("data-tree-key") || (cfg.shuffleSeed ? "#" + cfg.shuffleSeed : "");
-        cur = { h: hashHue(seedKey) };
+        const seedKey = (li.getAttribute("data-tree-key") || "") + (cfg.shuffleSeed ? "#" + cfg.shuffleSeed : "");
+        let h = hashHue(seedKey);
+        if (typeof cfg.__baseHue === "number") {
+          h = (cfg.__baseHue + (HUES.indexOf(h) - HUES.indexOf(HUES.reduce((a, b) => Math.abs(b - cfg.__baseHue) < Math.abs(a - cfg.__baseHue) ? b : a, HUES[0])) + 5) * 30 + 36e3) % 360;
+        }
+        cur = { h };
         if (cur.h === prevHue) cur.h = HUES[(HUES.indexOf(cur.h) + 1) % HUES.length];
       }
       prevHue = cur.h;
@@ -352,6 +356,55 @@ function buildSetting(siyuan2, i18n) {
   gBase.append(alphaBox);
   const alphaSl = alphaBox.querySelector("input");
   if (alphaSl) alphaSl.addEventListener("input", refreshPreview);
+  const gTone = mkGroup(L.gTone || "\u5168\u5C40\u8272\u8C03", false);
+  const toneRow = document.createElement("div");
+  toneRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin:6px 0";
+  const toneName = document.createElement("span");
+  toneName.textContent = L.baseColor || "\u57FA\u8272";
+  const toneSwatch = document.createElement("input");
+  toneSwatch.type = "color";
+  toneSwatch.className = "b3-color-picker";
+  toneSwatch.style.cssText = "width:52px;height:26px;padding:0;border:1px solid var(--b3-border-color);background:transparent;cursor:pointer";
+  toneSwatch.value = cfg.__baseHex || hslToHex(140, cfg.chroma, cfg.light / 100);
+  const sAlpha = mkSlider(L.alpha || "\u67D3\u8272\u6D53\u5EA6", "alpha", 5, 40, () => Math.round(cfg.alpha * 100), (v) => {
+    cfg.alpha = v / 100;
+  }, (v) => v + "%");
+  const sChroma = mkSlider(L.chroma || "\u9971\u548C\u5EA6", "chroma", 0, 60, () => Math.round(cfg.chroma * 100), (v) => {
+    cfg.chroma = v / 100;
+  }, (v) => v + "%");
+  const sLight = mkSlider(L.light || "\u660E\u5EA6", "light", 30, 85, () => cfg.light, (v) => {
+    cfg.light = v;
+  }, (v) => v + "%");
+  const syncToneSliders = () => {
+    const vOf = (key) => key === "alpha" ? Math.round(cfg.alpha * 100) : key === "chroma" ? Math.round(cfg.chroma * 100) : cfg.light;
+    [["alpha", (v) => v + "%"], ["chroma", (v) => v + "%"], ["light", (v) => v + "%"]].forEach(([key]) => {
+      const box = key === "alpha" ? sAlpha : key === "chroma" ? sChroma : sLight;
+      const sl = box.querySelector("input");
+      const vb = box.querySelector("b");
+      const v = vOf(key);
+      sl.value = String(v);
+      if (vb) vb.textContent = v + "%";
+    });
+  };
+  toneSwatch.addEventListener("input", () => {
+    const { h, ss, ll } = hexToHsl(toneSwatch.value);
+    cfg.__baseHex = toneSwatch.value;
+    cfg.__baseHue = Math.round(h);
+    cfg.chroma = Math.round(ss * 100) / 100;
+    cfg.light = Math.round(ll * 100);
+    applyStyle();
+    walkAllNow();
+    persistSoon();
+    refreshPreview();
+    syncToneSliders();
+  });
+  toneRow.append(toneName, toneSwatch);
+  gTone.append(toneRow, sAlpha, sChroma, sLight);
+  gBase.parentNode.insertBefore(gTone.parentElement, gBase.nextSibling);
+  [sAlpha, sChroma, sLight].forEach((box) => {
+    const sl = box.querySelector("input");
+    if (sl) sl.addEventListener("input", refreshPreview);
+  });
   const reRow = document.createElement("div");
   reRow.style.marginTop = "8px";
   const reBtn = document.createElement("button");
@@ -494,7 +547,7 @@ function buildSetting(siyuan2, i18n) {
         if (!o || typeof o === "number" || typeof o.s !== "number") return null;
         return o;
       };
-      const sAlpha = mkNbSlider(
+      const sAlpha2 = mkNbSlider(
         L.alpha || "\u6D53\u5EA6",
         "alpha",
         5,
@@ -509,7 +562,7 @@ function buildSetting(siyuan2, i18n) {
         },
         (v) => v + "%"
       );
-      const sChroma = mkNbSlider(
+      const sChroma2 = mkNbSlider(
         L.chroma || "\u9971\u548C",
         "chroma",
         0,
@@ -524,7 +577,7 @@ function buildSetting(siyuan2, i18n) {
         },
         (v) => v + "%"
       );
-      const sLight = mkNbSlider(
+      const sLight2 = mkNbSlider(
         L.light || "\u660E\u5EA6",
         "light",
         20,
@@ -550,12 +603,12 @@ function buildSetting(siyuan2, i18n) {
         syncCustomPanel();
         syncFoldMark();
       };
-      customBox.append(sAlpha, sChroma, sLight, clearBtn);
+      customBox.append(sAlpha2, sChroma2, sLight2, clearBtn);
       const syncCustomPanel = () => {
         const o = curOv();
         customBox.style.display = o && !folded.on ? "block" : "none";
         if (o && !folded.on) {
-          [sAlpha, sChroma, sLight].forEach((slBox) => {
+          [sAlpha2, sChroma2, sLight2].forEach((slBox) => {
             const sl = slBox.querySelector("input");
             sl.dispatchEvent(new Event("input"));
           });

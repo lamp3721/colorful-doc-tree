@@ -20,5 +20,7 @@
   "clearCustom": "Clear custom",
   "customDots": "Custom…",
   "unifyAll": "Unify all as…",
-  "reshuffle": "🎲 Reshuffle colors"
+  "reshuffle": "🎲 Reshuffle colors",
+  "gTone": "Global tone",
+  "baseColor": "Base color"
 }
