@@ -27,7 +27,10 @@ class ColorfulDocTree extends siyuan.Plugin {
         bindHost(this);
         await loadCfg();
         applyStyle();
-        if (cfg.enabled) startWatchers();
+        // 走查启动不在此处（见 onLayoutReady）——onload 发生在启动早期
+        // （loadPlugins 在 storage/language/interface 之前，index.ts:359），
+        // 此时文档树面板可能尚未建好，scan 扫空只能靠 mouseup 节流追补
+        // ——"刷新界面颜色迟到 5 秒"的根因
         // 命令注册：ICommand 字段是 langKey/langText（command 字段无人识别
         // → ID 落 undefined → 撞 ID → onload 崩，v0.4.17 真机实证，勿回退）
         const L = this.i18n || {};
@@ -36,6 +39,12 @@ class ColorfulDocTree extends siyuan.Plugin {
         // this.setting 存在 = 集市列表齿轮图标（hasPluginSetting 判定）；
         // 面板内容由 settings 组件构建
         this.setting = buildSetting(siyuan, this.i18n);
+    }
+
+    // 布局就绪再启动走查（v0.5.3 修"刷新界面颜色迟到数秒"）：面板已在 DOM，
+    // scan(true) 一次到位；官方插件生命周期专用钩子（lifecycle.ts runLayout）
+    onLayoutReady() {
+        if (cfg.enabled) startWatchers();
     }
 
     // 覆写即免重载（plugin/lifecycle.ts:469——未覆写时 saveData 的 data change

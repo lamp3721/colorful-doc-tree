@@ -580,11 +580,15 @@ var ColorfulDocTree = class extends siyuan.Plugin {
     bindHost(this);
     await loadCfg();
     applyStyle();
-    if (cfg.enabled) startWatchers();
     const L = this.i18n || {};
     this.addCommand({ langKey: "toggle", langText: L.toggle || "\u5207\u6362\u5F69\u8272\u80CC\u666F", hotkey: "", callback: () => this.toggle() });
     this.addCommand({ langKey: "settings", langText: L.settings || "\u5F69\u8272\u6587\u6863\u6811\u8BBE\u7F6E", hotkey: "", callback: () => this.openSettings() });
     this.setting = buildSetting(siyuan, this.i18n);
+  }
+  // 布局就绪再启动走查（v0.5.3 修"刷新界面颜色迟到数秒"）：面板已在 DOM，
+  // scan(true) 一次到位；官方插件生命周期专用钩子（lifecycle.ts runLayout）
+  onLayoutReady() {
+    if (cfg.enabled) startWatchers();
   }
   // 覆写即免重载（plugin/lifecycle.ts:469——未覆写时 saveData 的 data change
   // 任务原位提升为整插件 reload；本实例内存 cfg 即权威）
