@@ -109,18 +109,21 @@ class ColorfulDocTree extends siyuan.Plugin {
             "}\n" +
             // —— 形态二：行首色条（3px 竖线，同笔记本连续成轨、块间留缝；
             //     细条不吃浓度透明度——低 alpha 下不可见，直接实色，明度/饱和仍可调）——
-            //     端头不圆角：3px 条上任何圆角都占宽度过半，观感成"半圆帽"（v0.3.1 修）；
-            //     接缝 -1px 全高叠接（与圆角叠用时两头缺角、不圆润），端头留缝即可
+            //     端头圆角策略（v0.3.2）：整条轨道只有两个真正端点（块首顶/块末底）
+            //     做圆角——且只做外端单侧 1.5px（3px 条的双侧全圆角占宽 2/3，观感成
+            //     "半圆帽"；v0.3.1 的全方角又显断口生硬）。块内接缝保持方正 -1px
+            //     叠接（连续轨道感），中段行零圆角——圆角只在轨道尽头出现
             'html[data-cftree="on"][data-cftreestyle="bar"] .file-tree .b3-list-item[data-nb-walked]::after {' +
             '  content: ""; position: absolute; z-index: -1; pointer-events: none;' +
             "  width: 3px; inset-inline: 0 auto; inset-block: -1px;" +
             "  background: oklch(" + this.cfg.light + "% " + this.cfg.chroma + " var(--nb-h, 231));" +
             "}\n" +
+            // 轨道顶点（块首行）：上端外圆角——顶左角收，顶右角保持直边贴行首
             'html[data-cftree="on"][data-cftreestyle="bar"] .file-tree .b3-list-item[data-nb-block-start]::after {' +
-            "  top: 3px;" +
+            "  top: 3px; border-top-left-radius: 1.5px; border-top-right-radius: 1.5px;" +
             "}\n" +
             'html[data-cftree="on"][data-cftreestyle="bar"] .file-tree .b3-list-item[data-nb-block-end]::after {' +
-            "  bottom: 3px;" +
+            "  bottom: 3px; border-bottom-left-radius: 1.5px; border-bottom-right-radius: 1.5px;" +
             "}";
     }
 
