@@ -233,7 +233,13 @@ class ColorfulDocTree extends siyuan.Plugin {
                 // override 优先（v0.4.0；v0.4.4 值域升级为 HSL 对象）：
                 // 手动指定的笔记本直接用；未指定走哈希+相邻防撞。
                 // override 可带自定义明度/饱和（{h,s,l}），只填 h 时沿用全局滑条
-                const nbId = li.getAttribute("data-node-id") || li.getAttribute("data-tree-key") || "";
+                // 笔记本稳定键（v0.4.6 事故修复）：notebook 根行 data-node-id 为空串
+                // （row.ts:39 nodeID = root && !boxDoc ? "" : item.id），occurrenceKey
+                // 含路径不稳定。notebook 行的 data-tree-key 恒为 "notebook:<笔记本ID>"
+                // （rowData.ts:20），剥前缀即 lsNotebooks 的 nb.id——与设置面板
+                // override 的键同源
+                const rawKey = li.getAttribute("data-tree-key") || "";
+                const nbId = rawKey.startsWith("notebook:") ? rawKey.slice(9) : rawKey;
                 const ov = this.cfg.overrides && Object.prototype.hasOwnProperty.call(this.cfg.overrides, nbId)
                     ? this.cfg.overrides[nbId] : null;
                 let h;
@@ -252,7 +258,8 @@ class ColorfulDocTree extends siyuan.Plugin {
                 prevHue = h;
             }
 
-            const ovHere = this.cfg.overrides && this.cfg.overrides[li.getAttribute("data-node-id") || ""];
+            const kHere = li.getAttribute("data-tree-key") || "";
+            const ovHere = this.cfg.overrides && this.cfg.overrides[kHere.startsWith("notebook:") ? kHere.slice(9) : kHere];
             if (!ovHere) {
                 li.style.removeProperty("--nb-s");
                 li.style.removeProperty("--nb-l");
