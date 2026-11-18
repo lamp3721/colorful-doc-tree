@@ -1,6 +1,9 @@
 /**
  * 彩色文档树 —— 按笔记本一色给文档树染底 + 标签面板按名染色
  *
+ * v0.1.1 色彩调优：染底公式 62%/0.12（暗底明快不闷）；调色板避开浑浊区；
+ * 相邻防撞（哈希撞邻块色相顺移一档——相邻块同色会失去分界意义）
+ *
  * 机制（与主题版同构，独立零依赖）：
  *   · 面板级 MutationObserver 跟踪 .file-tree（文档树是虚拟化 DOM，
  *     行随滚动/开合变化）——走查给每行打 --nb-h 色相：
@@ -20,8 +23,10 @@ const siyuan = require("siyuan");
 
 const STYLE_ID = "colorful-doc-tree-style";
 const CFG_KEY = "config.json";
-// 10 档色相调色板（暗亮主题通用：染底是低透明叠层）
-const HUES = [20, 50, 85, 120, 150, 180, 210, 245, 285, 325];
+// 10 档色相调色板（暗亮主题通用：染底是低透明叠层）——
+// v0.1.1 调优：避开暗底下浑浊的色相区（原 20 橙棕/325 品红偏闷），
+// 十档在明度感知上尽量均匀（黄绿区密集是感知特性）
+const HUES = [15, 45, 90, 140, 170, 200, 230, 262, 298, 335];
 const DEFAULTS = { enabled: true, alpha: 0.14 };
 
 function hashHue(key) {
@@ -85,7 +90,7 @@ class ColorfulDocTree extends siyuan.Plugin {
             'html[data-cftree="on"] .file-tree.sy__file .b3-list-item[data-nb-walked]::after,' +
             'html[data-cftree="on"] .file-tree.sy__tag .b3-list-item[data-nb-walked]::after {' +
             '  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;' +
-            "  background: oklch(50% 0.07 var(--nb-h, 231) / " + a + ");" +
+            "  background: oklch(62% 0.12 var(--nb-h, 231) / " + a + ");" +
             "}\n" +
             // 文档树：整块连续（跨行距缝）+ 块首/末圆角 + 块间留缝
             'html[data-cftree="on"] .file-tree.sy__file .b3-list-item[data-nb-walked]::after {' +
@@ -174,9 +179,16 @@ class ColorfulDocTree extends siyuan.Plugin {
             const dt = li.getAttribute("data-type");
             return dt === "navigation-root" || dt === "navigation-closed";
         };
+        let prevHue = -1;
         for (let i = 0; i < valid.length; i++) {
             const li = valid[i];
-            if (isNb(li)) hue = hashHue(li.getAttribute("data-tree-key") || "");
+            if (isNb(li)) {
+                let h = hashHue(li.getAttribute("data-tree-key") || "");
+                // 相邻防撞（v0.1.1）：哈希撞上前一个笔记本的色相 → 顺移一档
+                if (h === prevHue) h = HUES[(HUES.indexOf(h) + 1) % HUES.length];
+                hue = h;
+                prevHue = h;
+            }
             this.setHue(li, hue);
             // 块边界：首=notebook 行；末=下一有效行是 notebook 行或走到尾
             const blockEnd = i + 1 >= valid.length || isNb(valid[i + 1]);
@@ -186,9 +198,13 @@ class ColorfulDocTree extends siyuan.Plugin {
     }
 
     walkTags(panel) {
+        let prevHue = -1;
         panel.querySelectorAll("li.b3-list-item").forEach((li) => {
             const name = (li.querySelector(".b3-list-item__text") || li).textContent || "";
-            this.setHue(li, hashHue(name));
+            let h = hashHue(name);
+            if (h === prevHue) h = HUES[(HUES.indexOf(h) + 1) % HUES.length];
+            prevHue = h;
+            this.setHue(li, h);
             this.setAttr(li, "data-nb-block-start", false);
             this.setAttr(li, "data-nb-block-end", false);
         });
