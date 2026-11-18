@@ -14,7 +14,7 @@ jobs:
       - name: Build package.zip
         run: |
           mkdir -p package/colorful-doc-tree
-          cp plugin.json index.js index.css icon.png README.md README.zh-CN.md package/colorful-doc-tree/
+          cp plugin.json index.js index.css icon.png preview.png README.md README.zh-CN.md package/colorful-doc-tree/
           cp -r i18n package/colorful-doc-tree/
           cd package && zip -r ../package.zip colorful-doc-tree
       - uses: softprops/action-gh-release@v2

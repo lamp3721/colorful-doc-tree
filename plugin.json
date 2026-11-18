@@ -2,7 +2,7 @@
   "name": "colorful-doc-tree",
   "author": "lamp3721",
   "url": "https://github.com/lamp3721/colorful-doc-tree",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "minAppVersion": "3.7.1",
   "displayName": {
     "default": "Colorful Doc Tree",
@@ -30,5 +30,6 @@
     "笔记本",
     "doc tree",
     "color"
-  ]
+  ],
+  "preview": "preview.png"
 }
