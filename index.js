@@ -230,6 +230,10 @@ function clearMarks() {
 }
 
 // src/settings/index.js
+var PRESETS = {
+  soft: { alpha: 0.12, chroma: 0.08, light: 64 },
+  vivid: { alpha: 0.24, chroma: 0.15, light: 60 }
+};
 function buildSetting(siyuan2, i18n) {
   const L = i18n || {};
   const mkSlider = (label, key, min, max, getVal, setVal, fmt) => {

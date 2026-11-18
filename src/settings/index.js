@@ -8,6 +8,13 @@ import { applyStyle } from '../render/index.js';
 import { HUES, HUE_NAMES, hashHue, hslToHex, hexToHsl } from '../shared/color.js';
 import { walkAllNow } from '../walker/index.js';
 
+// 预设（v0.4.9 引入；v0.5.1 拆分时曾丢失致预设失效，此处归位——
+// 预设是滑条三参组合，属 settings 层而非 shared）
+const PRESETS = {
+    soft:  { alpha: 0.12, chroma: 0.08, light: 64 },
+    vivid: { alpha: 0.24, chroma: 0.15, light: 60 },
+};
+
 export function buildSetting(siyuan, i18n) {
     const L = i18n || {};
     const mkSlider = (label, key, min, max, getVal, setVal, fmt) => {
