@@ -227,6 +227,7 @@ class ColorfulDocTree extends siyuan.Plugin {
             return dt === "navigation-root" || dt === "navigation-closed";
         };
         let prevHue = -1;
+        let cur = null;   // 当前笔记本的完整色描述 {h, s?, l?}（v0.4.7：s/l 随笔记本传递）
         for (let i = 0; i < valid.length; i++) {
             const li = valid[i];
             if (isNb(li)) {
@@ -244,26 +245,22 @@ class ColorfulDocTree extends siyuan.Plugin {
                     ? this.cfg.overrides[nbId] : null;
                 let h;
                 if (ov) {
-                    const o = typeof ov === "number" ? { h: ov } : ov;
-                    h = o.h;
-                    // 仅在自定义值存在时写（快捷色 {h} 无 s/l——undefined 会算出
-                    // NaN 写进变量，公式整条作废变透明，v0.4.5 事故根因之二）
-                    if (typeof o.s === "number") li.style.setProperty("--nb-s", String(Math.round(o.s) / 100));
-                    if (typeof o.l === "number") li.style.setProperty("--nb-l", String(Math.round(o.l) + "%"));
+                    cur = typeof ov === "number" ? { h: ov } : ov;
                 } else {
-                    h = hashHue(li.getAttribute("data-tree-key") || "");
-                    if (h === prevHue) h = HUES[(HUES.indexOf(h) + 1) % HUES.length];
+                    cur = { h: hashHue(li.getAttribute("data-tree-key") || "") };
+                    if (cur.h === prevHue) cur.h = HUES[(HUES.indexOf(cur.h) + 1) % HUES.length];
                 }
-                hue = h;
-                prevHue = h;
+                hue = cur.h;
+                prevHue = cur.h;
             }
 
-            const kHere = li.getAttribute("data-tree-key") || "";
-            const ovHere = this.cfg.overrides && this.cfg.overrides[kHere.startsWith("notebook:") ? kHere.slice(9) : kHere];
-            if (!ovHere) {
-                li.style.removeProperty("--nb-s");
-                li.style.removeProperty("--nb-l");
-            }
+            // 每行从 cur 统一写三变量（v0.4.7 修复"notebook 行与子行颜色不一致"：
+            // 旧版 s/l 只写 notebook 行自己、子行零继承，色板自定义色下首行
+            // 与内容行必然两色）。s/l 仅在自定义存在时写——缺席即公式回退全局
+            if (cur && typeof cur.s === "number") li.style.setProperty("--nb-s", String(Math.round(cur.s) / 100));
+            else li.style.removeProperty("--nb-s");
+            if (cur && typeof cur.l === "number") li.style.setProperty("--nb-l", String(Math.round(cur.l) + "%"));
+            else li.style.removeProperty("--nb-l");
             this.setHue(li, hue);
             // 块边界：首=notebook 行；末=下一有效行是 notebook 行或走到尾
             const blockEnd = i + 1 >= valid.length || isNb(valid[i + 1]);
