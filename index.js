@@ -83,8 +83,11 @@ class ColorfulDocTree extends siyuan.Plugin {
         if (typeof this.cfg.overrides !== "object" || this.cfg.overrides === null) this.cfg.overrides = {};
         this.applyStyle();
         if (this.cfg.enabled) this.startWatchers();
-        this.addCommand({ command: "toggle", hotkey: "", callback: () => this.toggle() });
-        this.addCommand({ command: "settings", hotkey: "", callback: () => this.openSettings() });
+        // ICommand 字段是 langKey/langText（command 字段无人识别 → ID 落 undefined
+        // → 撞 ID 抛错 → onload 崩 → 插件加载失败，v0.4.17 真机实证）
+        const L0 = this.i18n || {};
+        this.addCommand({ langKey: "toggle", langText: L0.toggle || "切换彩色背景", hotkey: "", callback: () => this.toggle() });
+        this.addCommand({ langKey: "settings", langText: L0.settings || "彩色文档树设置", hotkey: "", callback: () => this.openSettings() });
         this.buildSetting();
     }
 
