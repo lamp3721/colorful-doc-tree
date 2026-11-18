@@ -1,8 +1,8 @@
 {
   "name": "colorful-doc-tree",
   "author": "lamp3721",
-  "url": "https://gitea.eeccc.cc/admin/siyuan-plugin-colorful-doc-tree",
-  "version": "0.2.3",
+  "url": "https://github.com/lamp3721/colorful-doc-tree",
+  "version": "0.2.4",
   "minAppVersion": "3.7.1",
   "displayName": {
     "default": "Colorful Doc Tree",
