@@ -60,6 +60,7 @@ class ColorfulDocTree extends siyuan.Plugin {
         if (this.cfg.enabled) this.startWatchers();
         this.addCommand({ command: "toggle", hotkey: "", callback: () => this.toggle() });
         this.addCommand({ command: "settings", hotkey: "", callback: () => this.openSettings() });
+        this.buildSetting();
     }
 
     onunload() {
@@ -236,83 +237,111 @@ class ColorfulDocTree extends siyuan.Plugin {
         });
     }
 
-    // ---- 设置对话框 ----
+    // ---- 设置 ----
 
-    openSettings() {
+    /**
+     * 官方设置入口（v0.2.1）：this.setting 存在 ⇒ 思源在
+     * 设置 → 集市 → 已下载 → 插件 列表里显示齿轮图标，点击即 open()。
+     * 项由 addItem 提供（title + 自建 actionElement），确认时 confirmCallback
+     * 落盘。命令面板的 settings 命令同走这里。
+     */
+    buildSetting() {
         const L = this.i18n || {};
-        const slide = (label, key, min, max, val, unit) =>
-            '<div style="margin-bottom:14px">' +
-                '<div class="fn__flex" style="justify-content:space-between;margin-bottom:4px">' +
-                    '<span>' + label + '</span><b data-val="' + key + '">' + val + unit + "</b>" +
-                "</div>" +
-                '<input class="b3-slider" type="range" min="' + min + '" max="' + max + '" step="1"' +
-                    ' style="width:100%" value="' + val + '" data-slider="' + key + '" data-unit="' + unit + '">' +
-            "</div>";
-        const preset = (key, label) =>
-            '<button class="b3-button b3-button--outline" style="margin-right:8px" data-preset="' + key + '">' + label + "</button>";
-        const dialog = new siyuan.Dialog({
-            title: L.settings || "彩色文档树设置",
-            content:
-                '<div style="padding:16px">' +
-                '<label class="fn__flex" style="align-items:center;justify-content:space-between;margin-bottom:16px">' +
-                    '<span>' + (L.enabled || "启用彩色背景") + '</span>' +
-                    '<input class="b3-switch" type="checkbox"' + (this.cfg.enabled ? " checked" : "") + ' data-cfg="enabled">' +
-                "</label>" +
-                slide(L.alpha || "染色浓度", "alpha", 5, 40, Math.round(this.cfg.alpha * 100), "%") +
-                slide(L.chroma || "饱和度", "chroma", 0, 20, Math.round(this.cfg.chroma * 100), "%") +
-                slide(L.light || "明度", "light", 40, 80, this.cfg.light, "%") +
-                '<div style="margin-bottom:8px">预设：' + preset("soft", "柔和") + preset("vivid", "鲜明") + "</div>" +
-                '<div style="text-align:center">' +
-                    '<button class="b3-button b3-button--outline" data-cfg="save">' + (L.save || "保存") + "</button>" +
-                "</div></div>",
-            width: "420px",
-        });
-        const root = dialog.element;
-        const sw = root.querySelector('[data-cfg="enabled"]');
-        let saveTimer = 0;
-        const persistSoon = () => { clearTimeout(saveTimer); saveTimer = setTimeout(() => this.persist(), 300); };
-        // 滑条：拖动即时预览（重写样式，不动 watchers），防抖持久化
-        root.querySelectorAll("[data-slider]").forEach((slider) => {
-            slider.oninput = () => {
-                const key = slider.getAttribute("data-slider");
-                const unit = slider.getAttribute("data-unit") || "";
-                const v = parseInt(slider.value, 10);
-                const valEl = root.querySelector('[data-val="' + key + '"]');
-                if (valEl) valEl.textContent = v + unit;
-                if (key === "alpha") this.cfg.alpha = v / 100;
-                if (key === "chroma") this.cfg.chroma = v / 100;
-                if (key === "light") this.cfg.light = v;
+        const mkSlider = (label, key, min, max, getVal, setVal, fmt) => {
+            const box = document.createElement("div");
+            box.style.cssText = "width:280px";
+            const head = document.createElement("div");
+            head.className = "fn__flex";
+            head.style.cssText = "justify-content:space-between;margin-bottom:4px;font-size:12px;opacity:.8";
+            const name = document.createElement("span");
+            name.textContent = label;
+            const val = document.createElement("b");
+            head.append(name, val);
+            const sl = document.createElement("input");
+            sl.className = "b3-slider";
+            sl.type = "range";
+            sl.min = String(min);
+            sl.max = String(max);
+            sl.step = "1";
+            sl.style.width = "100%";
+            const refresh = () => { val.textContent = fmt(getVal()); sl.value = String(getVal()); };
+            sl.addEventListener("input", () => {
+                setVal(parseInt(sl.value, 10));
+                refresh();
                 if (this.cfg.enabled) this.applyStyle();
-                persistSoon();
-            };
+                this.persistSoon();
+            });
+            refresh();
+            box.append(head, sl);
+            return box;
+        };
+        const setting = new siyuan.Setting({
+            width: "520px",
+            height: "auto",
+            confirmCallback: () => { this.persist(); this.applyStyle(); },
         });
-        // 预设：三参同设 + 即时预览 + 立即持久化
-        root.querySelectorAll("[data-preset]").forEach((btn) => {
-            btn.onclick = () => {
-                Object.assign(this.cfg, PRESETS[btn.getAttribute("data-preset")] || {});
-                this.applyStyle();
-                this.persist();
-                root.querySelectorAll("[data-slider]").forEach((slider) => {
-                    const key = slider.getAttribute("data-slider");
-                    const v = key === "alpha" ? Math.round(this.cfg.alpha * 100)
-                        : key === "chroma" ? Math.round(this.cfg.chroma * 100) : this.cfg.light;
-                    slider.value = v;
-                    const valEl = root.querySelector('[data-val="' + key + '"]');
-                    if (valEl) valEl.textContent = v + (slider.getAttribute("data-unit") || "");
-                });
-            };
-        });
-        const saveBtn = root.querySelector('[data-cfg="save"]');
-        if (saveBtn) saveBtn.onclick = () => {
+        const swBox = document.createElement("div");
+        const sw = document.createElement("input");
+        sw.className = "b3-switch";
+        sw.type = "checkbox";
+        sw.checked = this.cfg.enabled;
+        sw.addEventListener("change", () => {
             const wasOn = this.cfg.enabled;
-            if (sw) this.cfg.enabled = sw.checked;
-            this.persist();
+            this.cfg.enabled = sw.checked;
+            this.persistSoon();
             this.applyStyle();
             if (this.cfg.enabled && !wasOn) this.startWatchers();
             if (!this.cfg.enabled && wasOn) { this.stopWatchers(); this.clearMarks(); }
-            clearTimeout(saveTimer);
-            dialog.destroy();
+        });
+        swBox.append(sw);
+        setting.addItem({ title: L.enabled || "启用彩色背景", actionElement: swBox });
+        setting.addItem({
+            title: L.alpha || "染色浓度",
+            actionElement: mkSlider(L.alpha || "染色浓度", "alpha", 5, 40,
+                () => Math.round(this.cfg.alpha * 100),
+                (v) => { this.cfg.alpha = v / 100; },
+                (v) => v + "%"),
+        });
+        setting.addItem({
+            title: L.chroma || "饱和度",
+            actionElement: mkSlider(L.chroma || "饱和度", "chroma", 0, 20,
+                () => Math.round(this.cfg.chroma * 100),
+                (v) => { this.cfg.chroma = v / 100; },
+                (v) => v + "%"),
+        });
+        setting.addItem({
+            title: L.light || "明度",
+            actionElement: mkSlider(L.light || "明度", "light", 40, 80,
+                () => this.cfg.light,
+                (v) => { this.cfg.light = v; },
+                (v) => v + "%"),
+        });
+        // 预设：柔和 / 鲜明（点击即三参生效，滑条状态由 confirmCallback 后重开同步）
+        const pBox = document.createElement("div");
+        const mkPreset = (key, label) => {
+            const b = document.createElement("button");
+            b.className = "b3-button b3-button--outline";
+            b.style.marginRight = "8px";
+            b.textContent = label;
+            b.onclick = () => {
+                Object.assign(this.cfg, PRESETS[key] || {});
+                this.applyStyle();
+                this.persistSoon();
+            };
+            return b;
         };
+        pBox.append(mkPreset("soft", "柔和"), mkPreset("vivid", "鲜明"));
+        setting.addItem({ title: "预设", actionElement: pBox });
+        this.setting = setting;
+    }
+
+    openSettings() {
+        if (this.setting) this.setting.open(this.displayName || this.name);
+    }
+
+    persistSoon() {
+        clearTimeout(this._saveTimer);
+        this._saveTimer = setTimeout(() => this.persist(), 300);
     }
 }
 
