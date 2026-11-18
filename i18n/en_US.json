@@ -18,5 +18,6 @@
   "gColor": "Color",
   "preset": "Preset",
   "custom": "Custom",
-  "clearCustom": "Clear custom"
+  "clearCustom": "Clear custom",
+  "customDots": "Custom…"
 }

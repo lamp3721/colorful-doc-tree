@@ -18,5 +18,6 @@
   "gColor": "颜色调整",
   "preset": "预设",
   "custom": "自定义",
-  "clearCustom": "清除自定义"
+  "clearCustom": "清除自定义",
+  "customDots": "自定义…"
 }

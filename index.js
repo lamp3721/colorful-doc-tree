@@ -376,9 +376,6 @@ function buildSetting(siyuan2, i18n) {
       name.textContent = nb.name;
       const ctrl = document.createElement("div");
       ctrl.style.cssText = "display:flex;align-items:center;gap:4px";
-      const customBadge = document.createElement("span");
-      customBadge.textContent = L.custom || "\u81EA\u5B9A\u4E49";
-      customBadge.style.cssText = "display:none;font-size:12px;padding:1px 6px;border:1px solid var(--b3-border-color);border-radius:3px;color:var(--b3-theme-on-surface-light)";
       const swatch = document.createElement("input");
       swatch.type = "color";
       swatch.className = "b3-color-picker";
@@ -390,6 +387,10 @@ function buildSetting(siyuan2, i18n) {
       optAuto.value = "";
       optAuto.textContent = L.auto || "\u81EA\u52A8";
       quick.append(optAuto);
+      const optCustom = document.createElement("option");
+      optCustom.value = "__custom__";
+      optCustom.textContent = L.customDots || "\u81EA\u5B9A\u4E49\u2026";
+      quick.append(optCustom);
       HUES.forEach((h) => {
         const o = document.createElement("option");
         o.value = String(h);
@@ -407,19 +408,13 @@ function buildSetting(siyuan2, i18n) {
       const syncUI = () => {
         const c = hslOf(cfg.overrides && cfg.overrides[nb.id]);
         const isCustom = !!(c && typeof c === "object" && c.s !== void 0);
-        customBadge.style.display = isCustom ? "inline-block" : "none";
-        quick.style.display = isCustom ? "none" : "inline-block";
-        quick.value = c && typeof c === "object" && c.h !== void 0 && c.s === void 0 ? String(c.h) : "";
+        const isQuick = !!(c && typeof c === "object" && c.h !== void 0 && c.s === void 0);
+        quick.value = isCustom ? "__custom__" : isQuick ? String(c.h) : "";
         const hh = c ? c.h : hashHue(nb.id);
         const ss = c && c.s !== void 0 ? c.s : Math.round(cfg.chroma * 100);
         const ll = c && c.l !== void 0 ? c.l : cfg.light;
         swatch.value = hslToHex(hh, ss / 100, ll / 100);
       };
-      quick.addEventListener("change", () => {
-        if (quick.value === "") applyOverride(null);
-        else applyOverride({ h: parseInt(quick.value, 10) });
-        syncUI();
-      });
       swatch.addEventListener("input", () => {
         const { h, ss, ll } = hexToHsl(swatch.value);
         applyOverride({ h: Math.round(h), s: Math.round(ss * 100), l: Math.round(ll * 100), a: 100 });
@@ -512,7 +507,7 @@ function buildSetting(siyuan2, i18n) {
       const clearBtn = document.createElement("button");
       clearBtn.className = "b3-button b3-button--outline";
       clearBtn.style.cssText = "font-size:12px;margin-top:4px";
-      clearBtn.textContent = L.clearCustom || "\u6E05\u9664\u81EA\u5B9A\u4E49";
+      clearBtn.textContent = L.clearCustom || "\u56DE\u5230\u81EA\u52A8";
       clearBtn.onclick = (ev) => {
         ev.stopPropagation();
         applyOverride(null);
@@ -540,17 +535,26 @@ function buildSetting(siyuan2, i18n) {
       syncUI();
       syncCustomPanel();
       quick.addEventListener("change", () => {
-        setTimeout(() => {
-          syncUI();
-          syncCustomPanel();
-        }, 0);
+        if (quick.value === "__custom__") {
+          if (!curOv()) {
+            const base = hslOf(cfg.overrides && cfg.overrides[nb.id]);
+            const h0 = base ? base.h : hashHue(nb.id);
+            applyOverride({ h: h0, s: Math.round(cfg.chroma * 100), l: cfg.light, a: 100 });
+          }
+        } else if (quick.value === "") {
+          applyOverride(null);
+        } else {
+          applyOverride({ h: parseInt(quick.value, 10) });
+        }
+        syncUI();
+        syncCustomPanel();
       });
       const syncFoldMark = () => {
         name.textContent = (curOv() ? folded.on ? "\u25B8 " : "\u25BE " : "") + nb.name;
       };
       row.addEventListener("click", () => setTimeout(syncFoldMark, 0));
       syncFoldMark();
-      ctrl.append(quick, customBadge, swatch);
+      ctrl.append(quick, swatch);
       row.append(name, ctrl);
       const wrap = document.createElement("div");
       wrap.append(row, customBox);

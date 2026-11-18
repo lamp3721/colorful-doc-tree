@@ -160,10 +160,6 @@ export function buildSetting(siyuan, i18n) {
                 ctrl.style.cssText = "display:flex;align-items:center;gap:4px";
                 // v0.4.12：自定义色时不再显示快捷色下拉（"自动(哈希)"占位
                 // 对已自定义的条目是误导）——改显示"自定义"徽标 + swatch；
-                // 清除自定义的入口=参数区内的"清除"按钮
-                const customBadge = document.createElement("span");
-                customBadge.textContent = L.custom || "自定义";
-                customBadge.style.cssText = "display:none;font-size:12px;padding:1px 6px;border:1px solid var(--b3-border-color);border-radius:3px;color:var(--b3-theme-on-surface-light)";
                 const swatch = document.createElement("input");
                 swatch.type = "color";
                 swatch.className = "b3-color-picker";
@@ -175,6 +171,12 @@ export function buildSetting(siyuan, i18n) {
                 optAuto.value = "";
                 optAuto.textContent = L.auto || "自动";
                 quick.append(optAuto);
+                // "自定义…"选项（v0.5.1）：下拉四态一表——自动/十档色/自定义…，
+                // 切换不必绕"清除"按钮
+                const optCustom = document.createElement("option");
+                optCustom.value = "__custom__";
+                optCustom.textContent = L.customDots || "自定义…";
+                quick.append(optCustom);
                 HUES.forEach((h) => {
                     const o = document.createElement("option");
                     o.value = String(h);
@@ -192,21 +194,16 @@ export function buildSetting(siyuan, i18n) {
                 const syncUI = () => {
                     const c = hslOf(cfg.overrides && cfg.overrides[nb.id]);
                     const isCustom = !!(c && typeof c === "object" && c.s !== undefined);
-                    customBadge.style.display = isCustom ? "inline-block" : "none";
-                    quick.style.display = isCustom ? "none" : "inline-block";
-                    // 快捷下拉只在"纯色相 override"（十档色）时显示选中；色板值以 swatch 呈现
-                    quick.value = (c && typeof c === "object" && c.h !== undefined && c.s === undefined) ? String(c.h) : "";
+                    // 下拉永远显示（v0.5.1）：四态一表——自动/十档色/自定义…
+                    const isQuick = !!(c && typeof c === "object" && c.h !== undefined && c.s === undefined);
+                    quick.value = isCustom ? "__custom__" : (isQuick ? String(c.h) : "");
                     // swatch 初值：override 的 HSL → hex；无 override 显示全局公式色
                     const hh = c ? c.h : hashHue(nb.id);
                     const ss = c && c.s !== undefined ? c.s : Math.round(cfg.chroma * 100);
                     const ll = c && c.l !== undefined ? c.l : cfg.light;
                     swatch.value = hslToHex(hh, ss / 100, ll / 100);
                 };
-                quick.addEventListener("change", () => {
-                    if (quick.value === "") applyOverride(null);
-                    else applyOverride({ h: parseInt(quick.value, 10) });
-                    syncUI();
-                });
+
                 swatch.addEventListener("input", () => {
                     const { h, ss, ll } = hexToHsl(swatch.value);
                     // a=1：自定义色所见即所得（v0.4.8 用户反馈"纯红变粉"——
@@ -267,7 +264,7 @@ export function buildSetting(siyuan, i18n) {
                 const clearBtn = document.createElement("button");
                 clearBtn.className = "b3-button b3-button--outline";
                 clearBtn.style.cssText = "font-size:12px;margin-top:4px";
-                clearBtn.textContent = L.clearCustom || "清除自定义";
+                clearBtn.textContent = L.clearCustom || "回到自动";
                 clearBtn.onclick = (ev) => {
                     ev.stopPropagation();
                     applyOverride(null);
@@ -298,14 +295,32 @@ export function buildSetting(siyuan, i18n) {
                 });
                 syncUI();
                 syncCustomPanel();
-                quick.addEventListener("change", () => { setTimeout(() => { syncUI(); syncCustomPanel(); }, 0); });
+                // 唯一的下拉 change 处理（v0.5.1 曾短暂存在新旧两个监听器：
+                // 旧版先跑 parseInt("__custom__")=NaN 写坏 override）
+                quick.addEventListener("change", () => {
+                    if (quick.value === "__custom__") {
+                        // 进入自定义态：无完整自定义色时以当前显示色为起点
+                        // 造全套默认（哈希/已有色相 + 全局饱和/明度），参数区可调
+                        if (!curOv()) {
+                            const base = hslOf(cfg.overrides && cfg.overrides[nb.id]);
+                            const h0 = base ? base.h : hashHue(nb.id);
+                            applyOverride({ h: h0, s: Math.round(cfg.chroma * 100), l: cfg.light, a: 100 });
+                        }
+                    } else if (quick.value === "") {
+                        applyOverride(null);            // 自动：清 override
+                    } else {
+                        applyOverride({ h: parseInt(quick.value, 10) });   // 快捷色：纯色相
+                    }
+                    syncUI();
+                    syncCustomPanel();
+                });
                 // 可折叠视觉暗示：有自定义色时条目名前加 ▸/▾
                 const syncFoldMark = () => {
                     name.textContent = (curOv() ? (folded.on ? "▸ " : "▾ ") : "") + nb.name;
                 };
                 row.addEventListener("click", () => setTimeout(syncFoldMark, 0));
                 syncFoldMark();
-                ctrl.append(quick, customBadge, swatch);
+                ctrl.append(quick, swatch);
                 row.append(name, ctrl);
                 const wrap = document.createElement("div");
                 wrap.append(row, customBox);
