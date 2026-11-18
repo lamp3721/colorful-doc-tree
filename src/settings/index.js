@@ -100,7 +100,6 @@ export function buildSetting(siyuan, i18n) {
     });
     styleRow.append(styleName, styleSel);
     gBase.append(styleRow);
-    gBase.append(mkToggle(L.treeOn || "文档树染色", "tree"));
     // ── 分组二：颜色调整 ──
     const gColor = mkGroup(L.gColor || "颜色调整", true);
     gColor.append(mkSlider(L.alpha || "染色浓度", "alpha", 5, 40, () => Math.round(cfg.alpha * 100), (v) => { cfg.alpha = v / 100; }, (v) => v + "%"));

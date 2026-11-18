@@ -1,7 +1,7 @@
 /** 彩色文档树 — 构建产物（源码 src/*.js，勿手改；构建：npm run build） */
 
 // src/shared/config.js
-var DEFAULTS = { enabled: true, alpha: 0.14, chroma: 0.12, light: 62, style: "block", tree: true };
+var DEFAULTS = { enabled: true, alpha: 0.14, chroma: 0.12, light: 62, style: "block" };
 var CFG_KEY = "config.json";
 var cfg = Object.assign({}, DEFAULTS);
 if (typeof cfg.overrides !== "object" || cfg.overrides === null) cfg.overrides = {};
@@ -321,7 +321,6 @@ function buildSetting(siyuan2, i18n) {
   });
   styleRow.append(styleName, styleSel);
   gBase.append(styleRow);
-  gBase.append(mkToggle(L.treeOn || "\u6587\u6863\u6811\u67D3\u8272", "tree"));
   const gColor = mkGroup(L.gColor || "\u989C\u8272\u8C03\u6574", true);
   gColor.append(mkSlider(L.alpha || "\u67D3\u8272\u6D53\u5EA6", "alpha", 5, 40, () => Math.round(cfg.alpha * 100), (v) => {
     cfg.alpha = v / 100;
