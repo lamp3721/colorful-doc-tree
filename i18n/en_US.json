@@ -10,7 +10,6 @@
   "styleBlock": "Block background",
   "styleBar": "Leading color bar",
   "treeOn": "Tint doc tree",
-  "tagsOn": "Tint tag panel",
   "nbColors": "Notebook colors",
   "nbColorsDesc": "Manual assignment takes priority; unspecified ones are automatic",
   "auto": "Auto (hash)",

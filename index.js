@@ -27,7 +27,7 @@ const CFG_KEY = "config.json";
 // v0.1.1 调优：避开暗底下浑浊的色相区（原 20 橙棕/325 品红偏闷），
 // 十档在明度感知上尽量均匀（黄绿区密集是感知特性）
 const HUES = [15, 45, 90, 140, 170, 200, 230, 262, 298, 335];
-const DEFAULTS = { enabled: true, alpha: 0.14, chroma: 0.12, light: 62, style: "block", tree: true, tags: true };
+const DEFAULTS = { enabled: true, alpha: 0.14, chroma: 0.12, light: 62, style: "block", tree: true };
 // overrides：笔记本 id → 色相数字（HUES 档位）——手动指定优先于哈希；
 // 哈希管"默认好看"，override 管"我就要这个色"
 const HUE_NAMES = { 15: "橙", 45: "黄", 90: "黄绿", 140: "绿", 170: "青绿", 200: "青", 230: "蓝", 262: "靛", 298: "紫", 335: "玫红" };
@@ -73,7 +73,6 @@ class ColorfulDocTree extends siyuan.Plugin {
         if (style) style.remove();
         delete document.documentElement.dataset.cftree;
         delete document.documentElement.dataset.cftreestyle;
-        delete document.documentElement.dataset.cftreetags;
         this.clearMarks();
     }
 
@@ -89,7 +88,6 @@ class ColorfulDocTree extends siyuan.Plugin {
             document.head.appendChild(el);
         }
         document.documentElement.dataset.cftree = this.cfg.enabled ? "on" : "off";
-        document.documentElement.dataset.cftreetags = this.cfg.tags === false ? "off" : "on";
         document.documentElement.dataset.cftreestyle = this.cfg.style === "bar" ? "bar" : "block";
         const a = this.cfg.alpha;
         // 与主题版同款公式：oklch 固定亮度饱和度只变色相；
@@ -99,8 +97,7 @@ class ColorfulDocTree extends siyuan.Plugin {
             "  position: relative; isolation: isolate;" +
             "}\n" +
             // —— 形态一：整块背景（跨行距缝 + 块首/末圆角 + 块间留缝）——
-            'html[data-cftree="on"][data-cftreestyle="block"] .file-tree.sy__file .b3-list-item[data-nb-walked]::after,' +
-            'html[data-cftree="on"][data-cftreetags="on"][data-cftreestyle="block"] .file-tree.sy__tag .b3-list-item[data-nb-walked]::after {' +
+            'html[data-cftree="on"][data-cftreestyle="block"] .file-tree.sy__file .b3-list-item[data-nb-walked]::after {' +
             '  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;' +
             "  background: oklch(" + this.cfg.light + "% " + this.cfg.chroma + " var(--nb-h, 231) / " + a + ");" +
             "}\n" +
@@ -172,7 +169,7 @@ class ColorfulDocTree extends siyuan.Plugin {
     scan(force) {
         if (!force && Date.now() - this._lastScan < 2000) return;
         this._lastScan = Date.now();
-        const panels = document.querySelectorAll(".file-tree.sy__file, .file-tree.sy__tag");
+        const panels = document.querySelectorAll(".file-tree.sy__file");
         panels.forEach((p) => this.attach(p));
     }
 
@@ -195,8 +192,8 @@ class ColorfulDocTree extends siyuan.Plugin {
     }
 
     walk(panel) {
+        // v0.4.1 起只做文档树（用户定调：插件专注于文档树，不做标签面板染色）
         if (panel.classList.contains("sy__file")) this.walkTree(panel);
-        else if (panel.classList.contains("sy__tag") && this.cfg.tags !== false) this.walkTags(panel);
     }
 
     walkTree(panel) {
@@ -230,19 +227,6 @@ class ColorfulDocTree extends siyuan.Plugin {
             this.setAttr(li, "data-nb-block-start", isNb(li));
             this.setAttr(li, "data-nb-block-end", blockEnd);
         }
-    }
-
-    walkTags(panel) {
-        let prevHue = -1;
-        panel.querySelectorAll("li.b3-list-item").forEach((li) => {
-            const name = (li.querySelector(".b3-list-item__text") || li).textContent || "";
-            let h = hashHue(name);
-            if (h === prevHue) h = HUES[(HUES.indexOf(h) + 1) % HUES.length];
-            prevHue = h;
-            this.setHue(li, h);
-            this.setAttr(li, "data-nb-block-start", false);
-            this.setAttr(li, "data-nb-block-end", false);
-        });
     }
 
     setHue(li, hue) {
@@ -351,7 +335,6 @@ class ColorfulDocTree extends siyuan.Plugin {
             return box;
         };
         mkToggle(L.treeOn === undefined ? "文档树染色" : L.treeOn, "tree");
-        mkToggle(L.tagsOn === undefined ? "标签面板染色" : L.tagsOn, "tags");
         // 笔记本颜色指定（v0.4.0）：override 表——内核 API 拉全部笔记本，
         // 每本一个色相下拉（含"自动"）；改完即时重走查
         const nbBox = document.createElement("div");
@@ -455,7 +438,13 @@ class ColorfulDocTree extends siyuan.Plugin {
     }
 
     openSettings() {
-        if (this.setting) this.setting.open(this.displayName || this.name);
+        if (!this.setting) return;
+        this.setting.open(this.displayName || this.name);
+        // v0.4.1：内容超出窗口高度时可滚动（笔记本多时列表很长）——
+        // Setting 构造的 height:"auto" 不限高，超过视口就溢出且不可滚
+        const dlg = this.setting.dialog;
+        const content = dlg && dlg.element ? dlg.element.querySelector(".b3-dialog__content") : null;
+        if (content) content.style.maxHeight = "70vh";
     }
 
     persistSoon() {
