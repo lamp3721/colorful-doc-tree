@@ -82,6 +82,30 @@ export function buildSetting(siyuan, i18n) {
         container.append(det);
         return body;
     };
+    // ── 预览条（v0.5.7 面板第一公民）——三个模拟块即时反映浓度/形态/统一 ──
+    const pvBox = document.createElement("div");
+    pvBox.style.cssText = "display:flex;gap:6px;padding:8px 0;margin-bottom:4px;border-bottom:1px solid var(--b3-border-color)";
+    const pvBlocks = [];
+    [200, 150, 40].forEach((h, i) => {
+        const b = document.createElement("div");
+        b.style.cssText = "flex:1;height:34px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--b3-theme-on-surface-light)";
+        b.textContent = ["笔记本 A", "笔记本 B", "笔记本 C"][i];
+        pvBox.append(b);
+        pvBlocks.push([b, h]);
+    });
+    const refreshPreview = () => {
+        pvBlocks.forEach(([b, h]) => {
+            if (cfg.style === "bar") {
+                b.style.background = "transparent";
+                b.style.borderLeft = "3px solid oklch(62% 0.12 " + h + ")";
+            } else {
+                b.style.borderLeft = "";
+                b.style.background = "oklch(62% 0.12 " + h + " / " + cfg.alpha + ")";
+            }
+        });
+    };
+    refreshPreview();
+    container.append(pvBox);
     // ── 分组一：基础 ──
     const gBase = mkGroup(L.gBasic || "基础", true);
     gBase.append(mkToggle(L.enabled || "启用彩色背景", "enabled"));
@@ -104,39 +128,65 @@ export function buildSetting(siyuan, i18n) {
         cfg.style = styleSel.value;
         if (cfg.enabled) applyStyle();
         persistSoon();
+        refreshPreview();
     });
     styleRow.append(styleName, styleSel);
     gBase.append(styleRow);
-    // ── 分组二：全局染色色（v0.5.6 重设计）──
-    // 旧三滑条（浓度/饱和/明度）模型缺陷实锤：用户锁定色相选"蓝"，
-    // 另两个全局滑条在背后偷改最终色——"选蓝出灰蓝"。改为单色板所见即所得：
-    // 选什么色就是什么色（hex 存储，选色时换算回 chroma/light 写 cfg，
-    // 渲染层零改动）；透明度单独留一个滑条（叠层需要）。
-    const gColor = mkGroup(L.gColor || "全局染色色", true);
-    const baseRow = document.createElement("div");
-    baseRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin:6px 0";
-    const baseName = document.createElement("span");
-    baseName.textContent = L.baseColor || "染色颜色";
-    const baseSwatch = document.createElement("input");
-    baseSwatch.type = "color";
-    baseSwatch.className = "b3-color-picker";
-    baseSwatch.style.cssText = "width:52px;height:26px;padding:0;border:1px solid var(--b3-border-color);background:transparent;cursor:pointer";
-    // cfg → 初值 hex（无存档时以默认 62%/12% 合成一个中性底色）
-    baseSwatch.value = cfg.__baseHex || hslToHex(210, cfg.chroma, cfg.light / 100);
-    baseSwatch.addEventListener("input", () => {
-        const { h, ss, ll } = hexToHsl(baseSwatch.value);
-        cfg.__baseHex = baseSwatch.value;
-        cfg.chroma = Math.round(ss * 100) / 100;   // 饱和（0~1）
-        cfg.light = Math.round(ll * 100);           // 明度（百分比数）
+    // 浓度滑条（v0.5.7 并回基础组：全局色板已删——"选蓝全变蓝"与多本
+    // 异色的设计冲突，语义立不住；全局回归哈希自动+浓度）
+    const alphaBox = mkSlider(L.alpha || "染色浓度", "alpha", 5, 40, () => Math.round(cfg.alpha * 100), (v) => { cfg.alpha = v / 100; }, (v) => v + "%");
+    gBase.append(alphaBox);
+    const alphaSl = alphaBox.querySelector("input");
+    if (alphaSl) alphaSl.addEventListener("input", refreshPreview);
+    // 重新分配（真实诉求直达：不满意随机配色，重洗一轮——换 seed）
+    const reRow = document.createElement("div");
+    reRow.style.marginTop = "8px";
+    const reBtn = document.createElement("button");
+    reBtn.className = "b3-button b3-button--outline";
+    reBtn.textContent = L.reshuffle || "🎲 重新分配颜色";
+    reBtn.onclick = () => {
+        cfg.shuffleSeed = (cfg.shuffleSeed || 0) + 1;
         applyStyle();
+        walkAllNow();
         persistSoon();
-    });
-    baseRow.append(baseName, baseSwatch);
-    gColor.append(baseRow);
-    // 透明度（唯一保留的滑条：叠层染色必须有浓度概念）
-    gColor.append(mkSlider(L.alpha || "染色浓度", "alpha", 5, 40, () => Math.round(cfg.alpha * 100), (v) => { cfg.alpha = v / 100; }, (v) => v + "%"));
+    };
+    reRow.append(reBtn);
+    gBase.append(reRow);
     // ── 分组三：笔记本颜色 ──
-    const gNb = mkGroup((L.nbColors || "笔记本颜色") + "（" + (L.nbColorsDesc || "手动优先，其余自动") + "）", true);
+    const gNb = mkGroup(L.nbColors || "笔记本颜色", true);
+    // 批量动作（v0.5.7 真实诉求直达）："全部统一为…"——选色全部笔记本
+    // 变它（极简党一步到位，不用一本一本点）
+    const unifyRow = document.createElement("div");
+    unifyRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding-bottom:6px;border-bottom:1px dashed var(--b3-border-color)";
+    const unifyName = document.createElement("span");
+    unifyName.style.cssText = "font-size:12px;opacity:.85";
+    unifyName.textContent = L.unifyAll || "全部统一为…";
+    const unifySwatch = document.createElement("input");
+    unifySwatch.type = "color";
+    unifySwatch.className = "b3-color-picker";
+    unifySwatch.style.cssText = "width:44px;height:24px;padding:0;border:1px solid var(--b3-border-color);background:transparent;cursor:pointer";
+    unifySwatch.value = hslToHex(210, 0.6, 0.62);
+    unifySwatch.addEventListener("input", () => {
+        const { h, ss, ll } = hexToHsl(unifySwatch.value);
+        // 所有笔记本 override 成同一完整色（所见即所得全套）
+        fetch("/api/notebook/lsNotebooks", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
+            .then((r) => r.json())
+            .then((data) => {
+                ((data && data.data && data.data.notebooks) || []).forEach((nb) => {
+                    if (nb.closed) return;
+                    cfg.overrides[nb.id] = { h: Math.round(h), s: Math.round(ss * 100), l: Math.round(ll * 100), a: 100 };
+                });
+                walkAllNow();
+                persistSoon();
+                pvBlocks.forEach(([b]) => {
+                    b.style.borderLeft = "";
+                    b.style.background = unifySwatch.value;
+                });
+            })
+            .catch((e) => console.error("[cftree] 统一配色失败:", e));
+    });
+    unifyRow.append(unifyName, unifySwatch);
+    gNb.append(unifyRow);          // v0.6.0 修复：统一行忘了挂载（测试假绿：querySelector 命中 A 行色板冒充统一色板）
     const nbBox = document.createElement("div");
     // 列表内部滚动上限（v0.4.3）：笔记本多时不许顶高面板——
     // max-height 12 行（每行 26px 出头）+ 内部滚动；分组外的整体

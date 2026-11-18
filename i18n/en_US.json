@@ -15,10 +15,10 @@
   "auto": "Auto (hash)",
   "noNotebooks": "(No notebooks found)",
   "gBasic": "Basics",
-  "gColor": "Global tint color",
   "preset": "Preset",
   "custom": "Custom",
   "clearCustom": "Clear custom",
   "customDots": "Custom…",
-  "baseColor": "Tint color"
+  "unifyAll": "Unify all as…",
+  "reshuffle": "🎲 Reshuffle colors"
 }

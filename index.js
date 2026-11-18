@@ -134,7 +134,8 @@ function walkTree(panel) {
       if (ov) {
         cur = typeof ov === "number" ? { h: ov } : ov;
       } else {
-        cur = { h: hashHue(li.getAttribute("data-tree-key") || "") };
+        const seedKey = li.getAttribute("data-tree-key") || (cfg.shuffleSeed ? "#" + cfg.shuffleSeed : "");
+        cur = { h: hashHue(seedKey) };
         if (cur.h === prevHue) cur.h = HUES[(HUES.indexOf(cur.h) + 1) % HUES.length];
       }
       prevHue = cur.h;
@@ -297,6 +298,29 @@ function buildSetting(siyuan2, i18n) {
     container.append(det);
     return body;
   };
+  const pvBox = document.createElement("div");
+  pvBox.style.cssText = "display:flex;gap:6px;padding:8px 0;margin-bottom:4px;border-bottom:1px solid var(--b3-border-color)";
+  const pvBlocks = [];
+  [200, 150, 40].forEach((h, i) => {
+    const b = document.createElement("div");
+    b.style.cssText = "flex:1;height:34px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--b3-theme-on-surface-light)";
+    b.textContent = ["\u7B14\u8BB0\u672C A", "\u7B14\u8BB0\u672C B", "\u7B14\u8BB0\u672C C"][i];
+    pvBox.append(b);
+    pvBlocks.push([b, h]);
+  });
+  const refreshPreview = () => {
+    pvBlocks.forEach(([b, h]) => {
+      if (cfg.style === "bar") {
+        b.style.background = "transparent";
+        b.style.borderLeft = "3px solid oklch(62% 0.12 " + h + ")";
+      } else {
+        b.style.borderLeft = "";
+        b.style.background = "oklch(62% 0.12 " + h + " / " + cfg.alpha + ")";
+      }
+    });
+  };
+  refreshPreview();
+  container.append(pvBox);
   const gBase = mkGroup(L.gBasic || "\u57FA\u7840", true);
   gBase.append(mkToggle(L.enabled || "\u542F\u7528\u5F69\u8272\u80CC\u666F", "enabled"));
   const styleRow = document.createElement("div");
@@ -318,33 +342,57 @@ function buildSetting(siyuan2, i18n) {
     cfg.style = styleSel.value;
     if (cfg.enabled) applyStyle();
     persistSoon();
+    refreshPreview();
   });
   styleRow.append(styleName, styleSel);
   gBase.append(styleRow);
-  const gColor = mkGroup(L.gColor || "\u5168\u5C40\u67D3\u8272\u8272", true);
-  const baseRow = document.createElement("div");
-  baseRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin:6px 0";
-  const baseName = document.createElement("span");
-  baseName.textContent = L.baseColor || "\u67D3\u8272\u989C\u8272";
-  const baseSwatch = document.createElement("input");
-  baseSwatch.type = "color";
-  baseSwatch.className = "b3-color-picker";
-  baseSwatch.style.cssText = "width:52px;height:26px;padding:0;border:1px solid var(--b3-border-color);background:transparent;cursor:pointer";
-  baseSwatch.value = cfg.__baseHex || hslToHex(210, cfg.chroma, cfg.light / 100);
-  baseSwatch.addEventListener("input", () => {
-    const { h, ss, ll } = hexToHsl(baseSwatch.value);
-    cfg.__baseHex = baseSwatch.value;
-    cfg.chroma = Math.round(ss * 100) / 100;
-    cfg.light = Math.round(ll * 100);
-    applyStyle();
-    persistSoon();
-  });
-  baseRow.append(baseName, baseSwatch);
-  gColor.append(baseRow);
-  gColor.append(mkSlider(L.alpha || "\u67D3\u8272\u6D53\u5EA6", "alpha", 5, 40, () => Math.round(cfg.alpha * 100), (v) => {
+  const alphaBox = mkSlider(L.alpha || "\u67D3\u8272\u6D53\u5EA6", "alpha", 5, 40, () => Math.round(cfg.alpha * 100), (v) => {
     cfg.alpha = v / 100;
-  }, (v) => v + "%"));
-  const gNb = mkGroup((L.nbColors || "\u7B14\u8BB0\u672C\u989C\u8272") + "\uFF08" + (L.nbColorsDesc || "\u624B\u52A8\u4F18\u5148\uFF0C\u5176\u4F59\u81EA\u52A8") + "\uFF09", true);
+  }, (v) => v + "%");
+  gBase.append(alphaBox);
+  const alphaSl = alphaBox.querySelector("input");
+  if (alphaSl) alphaSl.addEventListener("input", refreshPreview);
+  const reRow = document.createElement("div");
+  reRow.style.marginTop = "8px";
+  const reBtn = document.createElement("button");
+  reBtn.className = "b3-button b3-button--outline";
+  reBtn.textContent = L.reshuffle || "\u{1F3B2} \u91CD\u65B0\u5206\u914D\u989C\u8272";
+  reBtn.onclick = () => {
+    cfg.shuffleSeed = (cfg.shuffleSeed || 0) + 1;
+    applyStyle();
+    walkAllNow();
+    persistSoon();
+  };
+  reRow.append(reBtn);
+  gBase.append(reRow);
+  const gNb = mkGroup(L.nbColors || "\u7B14\u8BB0\u672C\u989C\u8272", true);
+  const unifyRow = document.createElement("div");
+  unifyRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding-bottom:6px;border-bottom:1px dashed var(--b3-border-color)";
+  const unifyName = document.createElement("span");
+  unifyName.style.cssText = "font-size:12px;opacity:.85";
+  unifyName.textContent = L.unifyAll || "\u5168\u90E8\u7EDF\u4E00\u4E3A\u2026";
+  const unifySwatch = document.createElement("input");
+  unifySwatch.type = "color";
+  unifySwatch.className = "b3-color-picker";
+  unifySwatch.style.cssText = "width:44px;height:24px;padding:0;border:1px solid var(--b3-border-color);background:transparent;cursor:pointer";
+  unifySwatch.value = hslToHex(210, 0.6, 0.62);
+  unifySwatch.addEventListener("input", () => {
+    const { h, ss, ll } = hexToHsl(unifySwatch.value);
+    fetch("/api/notebook/lsNotebooks", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }).then((r) => r.json()).then((data) => {
+      (data && data.data && data.data.notebooks || []).forEach((nb) => {
+        if (nb.closed) return;
+        cfg.overrides[nb.id] = { h: Math.round(h), s: Math.round(ss * 100), l: Math.round(ll * 100), a: 100 };
+      });
+      walkAllNow();
+      persistSoon();
+      pvBlocks.forEach(([b]) => {
+        b.style.borderLeft = "";
+        b.style.background = unifySwatch.value;
+      });
+    }).catch((e) => console.error("[cftree] \u7EDF\u4E00\u914D\u8272\u5931\u8D25:", e));
+  });
+  unifyRow.append(unifyName, unifySwatch);
+  gNb.append(unifyRow);
   const nbBox = document.createElement("div");
   nbBox.style.cssText = "display:flex;flex-direction:column;gap:4px;max-height:288px;overflow-y:auto";
   gNb.append(nbBox);

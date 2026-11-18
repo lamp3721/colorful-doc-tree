@@ -51,7 +51,9 @@ function walkTree(panel) {
             if (ov) {
                 cur = typeof ov === "number" ? { h: ov } : ov;
             } else {
-                cur = { h: hashHue(li.getAttribute("data-tree-key") || "") };
+                // shuffleSeed：'重新分配'按钮换 seed → 哈希输入变 → 全部重洗
+                const seedKey = li.getAttribute("data-tree-key") || "" + (cfg.shuffleSeed ? "#" + cfg.shuffleSeed : "");
+                cur = { h: hashHue(seedKey) };
                 if (cur.h === prevHue) cur.h = HUES[(HUES.indexOf(cur.h) + 1) % HUES.length];
             }
             prevHue = cur.h;
