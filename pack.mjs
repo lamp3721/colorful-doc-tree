@@ -1,7 +1,8 @@
 /**
- * 打包：构建 → package.zip（集市发布/手动安装同构，包根直放文件）
- * npm run pack 一条命令出包；CI（release.yml）同用本命令，单一打包事实源。
- * zip 用 python3 zipfile（node 无内置 zip，系统 zip 命令容器里没有）。
+ * 本地测试打包：构建 → package.zip（手动安装用，包根直放文件）
+ * 仅服务手动测试（npm run pack）；集市发布的打包在 release.yml 里独立
+ * 完成（CI 多套一层 colorful-doc-tree/ 目录，集市安装器自剥）。
+ * zip 用 python3 zipfile（node 无内置 zip，系统 zip 命令容器没有）。
  */
 import { execSync } from 'child_process';
 import { existsSync, statSync, readdirSync } from 'fs';

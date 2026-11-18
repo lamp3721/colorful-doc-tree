@@ -15,10 +15,14 @@ jobs:
     if: github.server_url == 'https://github.com'
     steps:
       - uses: actions/checkout@v4
-      - name: Build package.zip（与本地同命令——单一打包事实源）
+      # 集市发布打包：ubuntu 自带 zip，直接组装（不动 node_modules，
+      # 与本地 pack.mjs 无关——那是手动测试用的，CI 不需要触发）
+      - name: Build package.zip
         run: |
-          npm install --no-audit --no-fund
-          npm run pack
+          mkdir -p pkg/colorful-doc-tree
+          cp plugin.json index.js index.css icon.png preview.png README.md README.zh-CN.md pkg/colorful-doc-tree/
+          cp -r i18n pkg/colorful-doc-tree/
+          cd pkg && zip -r ../package.zip colorful-doc-tree
       - uses: softprops/action-gh-release@v2
         with:
           files: package.zip
