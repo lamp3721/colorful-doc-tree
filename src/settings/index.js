@@ -143,7 +143,10 @@ export function buildSetting(siyuan, i18n) {
     const toneRow = document.createElement("div");
     toneRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin:6px 0";
     const toneName = document.createElement("span");
-    toneName.textContent = L.baseColor || "基色";
+    toneName.textContent = L.baseColor || "配色基调";
+    const toneHint = document.createElement("div");
+    toneHint.style.cssText = "font-size:12px;opacity:.6;margin:2px 0 6px";
+    toneHint.textContent = L.baseColorHint || "各笔记本围绕这个颜色展开邻近色，不是全部变成它";
     const toneSwatch = document.createElement("input");
     toneSwatch.type = "color";
     toneSwatch.className = "b3-color-picker";
@@ -180,7 +183,7 @@ export function buildSetting(siyuan, i18n) {
         syncToneSliders();
     });
     toneRow.append(toneName, toneSwatch);
-    gTone.append(toneRow, sAlpha, sChroma, sLight);
+    gTone.append(toneRow, toneHint, sAlpha, sChroma, sLight);
     // 预设（v0.6.7）：柔和/鲜明——基色+三参数整套，一键即达（在色板选好
     // 基色后用预设快速试质感，滑条同步显示，想微调继续拖）
     const TONE_PRESETS = {

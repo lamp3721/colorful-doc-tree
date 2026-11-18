@@ -354,7 +354,10 @@ function buildSetting(siyuan2, i18n) {
   const toneRow = document.createElement("div");
   toneRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin:6px 0";
   const toneName = document.createElement("span");
-  toneName.textContent = L.baseColor || "\u57FA\u8272";
+  toneName.textContent = L.baseColor || "\u914D\u8272\u57FA\u8C03";
+  const toneHint = document.createElement("div");
+  toneHint.style.cssText = "font-size:12px;opacity:.6;margin:2px 0 6px";
+  toneHint.textContent = L.baseColorHint || "\u5404\u7B14\u8BB0\u672C\u56F4\u7ED5\u8FD9\u4E2A\u989C\u8272\u5C55\u5F00\u90BB\u8FD1\u8272\uFF0C\u4E0D\u662F\u5168\u90E8\u53D8\u6210\u5B83";
   const toneSwatch = document.createElement("input");
   toneSwatch.type = "color";
   toneSwatch.className = "b3-color-picker";
@@ -393,7 +396,7 @@ function buildSetting(siyuan2, i18n) {
     syncToneSliders();
   });
   toneRow.append(toneName, toneSwatch);
-  gTone.append(toneRow, sAlpha, sChroma, sLight);
+  gTone.append(toneRow, toneHint, sAlpha, sChroma, sLight);
   const TONE_PRESETS = {
     soft: { alpha: 0.12, chroma: 0.08, light: 64 },
     normal: { alpha: 0.16, chroma: 0.11, light: 62 },

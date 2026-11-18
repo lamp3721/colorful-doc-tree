@@ -21,9 +21,10 @@
   "customDots": "Custom…",
   "reshuffle": "🎲 Reshuffle colors",
   "gTone": "Global tone",
-  "baseColor": "Base color",
+  "baseColor": "Color key",
   "resetAll": "Reset all to auto",
   "soft": "Soft",
   "vivid": "Vivid",
-  "normal": "Normal"
+  "normal": "Normal",
+  "baseColorHint": "Notebooks spread into neighboring colors around it, not all becoming it"
 }
