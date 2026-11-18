@@ -1,1 +1,9 @@
-{"toggle":"切换彩色背景","settings":"彩色文档树设置","enabled":"启用彩色背景","alpha":"染色浓度","save":"保存"}
+{
+  "toggle": "切换彩色背景",
+  "settings": "彩色文档树设置",
+  "enabled": "启用彩色背景",
+  "alpha": "染色浓度",
+  "save": "保存",
+  "light": "明度",
+  "chroma": "饱和度"
+}

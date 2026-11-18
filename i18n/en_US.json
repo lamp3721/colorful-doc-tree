@@ -1,1 +1,9 @@
-{"toggle":"Toggle colorful background","settings":"Colorful Doc Tree settings","enabled":"Enable colored background","alpha":"Tint opacity","save":"Save"}
+{
+  "toggle": "Toggle colorful background",
+  "settings": "Colorful Doc Tree settings",
+  "enabled": "Enable colored background",
+  "alpha": "Tint opacity",
+  "save": "Save",
+  "light": "Lightness",
+  "chroma": "Chroma"
+}

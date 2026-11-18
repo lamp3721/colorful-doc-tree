@@ -17,7 +17,7 @@
  * 边界纪律：只观察面板容器，绝不进编辑器内容区（.protyle-wysiwyg）。
  *
  * 入口：装上即生效（默认开）。命令面板两条：切换 / 设置
- * （开关 + 染色浓度滑条，持久化走 kernel plugin data）。
+ * （启用开关 + 浓度/饱和/明度三滑条实时预览 + 柔和/鲜明预设，防抖持久化）。
  */
 const siyuan = require("siyuan");
 
@@ -27,7 +27,9 @@ const CFG_KEY = "config.json";
 // v0.1.1 调优：避开暗底下浑浊的色相区（原 20 橙棕/325 品红偏闷），
 // 十档在明度感知上尽量均匀（黄绿区密集是感知特性）
 const HUES = [15, 45, 90, 140, 170, 200, 230, 262, 298, 335];
-const DEFAULTS = { enabled: true, alpha: 0.14 };
+const DEFAULTS = { enabled: true, alpha: 0.14, chroma: 0.12, light: 62 };
+// 预设：柔和（低饱和淡染）/ 鲜明（高饱和浓染）
+const PRESETS = { soft: { alpha: 0.12, chroma: 0.08, light: 64 }, vivid: { alpha: 0.24, chroma: 0.15, light: 60 } };
 
 function hashHue(key) {
     let h = 5381;
@@ -90,7 +92,7 @@ class ColorfulDocTree extends siyuan.Plugin {
             'html[data-cftree="on"] .file-tree.sy__file .b3-list-item[data-nb-walked]::after,' +
             'html[data-cftree="on"] .file-tree.sy__tag .b3-list-item[data-nb-walked]::after {' +
             '  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;' +
-            "  background: oklch(62% 0.12 var(--nb-h, 231) / " + a + ");" +
+            "  background: oklch(" + this.cfg.light + "% " + this.cfg.chroma + " var(--nb-h, 231) / " + a + ");" +
             "}\n" +
             // 文档树：整块连续（跨行距缝）+ 块首/末圆角 + 块间留缝
             'html[data-cftree="on"] .file-tree.sy__file .b3-list-item[data-nb-walked]::after {' +
@@ -238,6 +240,16 @@ class ColorfulDocTree extends siyuan.Plugin {
 
     openSettings() {
         const L = this.i18n || {};
+        const slide = (label, key, min, max, val, unit) =>
+            '<div style="margin-bottom:14px">' +
+                '<div class="fn__flex" style="justify-content:space-between;margin-bottom:4px">' +
+                    '<span>' + label + '</span><b data-val="' + key + '">' + val + unit + "</b>" +
+                "</div>" +
+                '<input class="b3-slider" type="range" min="' + min + '" max="' + max + '" step="1"' +
+                    ' style="width:100%" value="' + val + '" data-slider="' + key + '" data-unit="' + unit + '">' +
+            "</div>";
+        const preset = (key, label) =>
+            '<button class="b3-button b3-button--outline" style="margin-right:8px" data-preset="' + key + '">' + label + "</button>";
         const dialog = new siyuan.Dialog({
             title: L.settings || "彩色文档树设置",
             content:
@@ -246,29 +258,59 @@ class ColorfulDocTree extends siyuan.Plugin {
                     '<span>' + (L.enabled || "启用彩色背景") + '</span>' +
                     '<input class="b3-switch" type="checkbox"' + (this.cfg.enabled ? " checked" : "") + ' data-cfg="enabled">' +
                 "</label>" +
-                '<label class="fn__flex" style="align-items:center;justify-content:space-between">' +
-                    '<span>' + (L.alpha || "染色浓度") + ' <b data-alpha-val>' + Math.round(this.cfg.alpha * 100) + "%</b></span>" +
-                    '<input class="b3-slider" type="range" min="5" max="30" style="width:180px" value="' + Math.round(this.cfg.alpha * 100) + '" data-cfg="alpha">' +
-                "</label>" +
-                '<div style="margin-top:24px;text-align:center">' +
+                slide(L.alpha || "染色浓度", "alpha", 5, 40, Math.round(this.cfg.alpha * 100), "%") +
+                slide(L.chroma || "饱和度", "chroma", 0, 20, Math.round(this.cfg.chroma * 100), "%") +
+                slide(L.light || "明度", "light", 40, 80, this.cfg.light, "%") +
+                '<div style="margin-bottom:8px">预设：' + preset("soft", "柔和") + preset("vivid", "鲜明") + "</div>" +
+                '<div style="text-align:center">' +
                     '<button class="b3-button b3-button--outline" data-cfg="save">' + (L.save || "保存") + "</button>" +
                 "</div></div>",
             width: "420px",
         });
         const root = dialog.element;
         const sw = root.querySelector('[data-cfg="enabled"]');
-        const slider = root.querySelector('[data-cfg="alpha"]');
-        const val = root.querySelector("[data-alpha-val]");
-        if (slider) slider.oninput = () => { if (val) val.textContent = slider.value + "%"; };
+        let saveTimer = 0;
+        const persistSoon = () => { clearTimeout(saveTimer); saveTimer = setTimeout(() => this.persist(), 300); };
+        // 滑条：拖动即时预览（重写样式，不动 watchers），防抖持久化
+        root.querySelectorAll("[data-slider]").forEach((slider) => {
+            slider.oninput = () => {
+                const key = slider.getAttribute("data-slider");
+                const unit = slider.getAttribute("data-unit") || "";
+                const v = parseInt(slider.value, 10);
+                const valEl = root.querySelector('[data-val="' + key + '"]');
+                if (valEl) valEl.textContent = v + unit;
+                if (key === "alpha") this.cfg.alpha = v / 100;
+                if (key === "chroma") this.cfg.chroma = v / 100;
+                if (key === "light") this.cfg.light = v;
+                if (this.cfg.enabled) this.applyStyle();
+                persistSoon();
+            };
+        });
+        // 预设：三参同设 + 即时预览 + 立即持久化
+        root.querySelectorAll("[data-preset]").forEach((btn) => {
+            btn.onclick = () => {
+                Object.assign(this.cfg, PRESETS[btn.getAttribute("data-preset")] || {});
+                this.applyStyle();
+                this.persist();
+                root.querySelectorAll("[data-slider]").forEach((slider) => {
+                    const key = slider.getAttribute("data-slider");
+                    const v = key === "alpha" ? Math.round(this.cfg.alpha * 100)
+                        : key === "chroma" ? Math.round(this.cfg.chroma * 100) : this.cfg.light;
+                    slider.value = v;
+                    const valEl = root.querySelector('[data-val="' + key + '"]');
+                    if (valEl) valEl.textContent = v + (slider.getAttribute("data-unit") || "");
+                });
+            };
+        });
         const saveBtn = root.querySelector('[data-cfg="save"]');
         if (saveBtn) saveBtn.onclick = () => {
             const wasOn = this.cfg.enabled;
             if (sw) this.cfg.enabled = sw.checked;
-            if (slider) this.cfg.alpha = parseInt(slider.value, 10) / 100;
             this.persist();
             this.applyStyle();
             if (this.cfg.enabled && !wasOn) this.startWatchers();
             if (!this.cfg.enabled && wasOn) { this.stopWatchers(); this.clearMarks(); }
+            clearTimeout(saveTimer);
             dialog.destroy();
         };
     }
