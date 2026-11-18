@@ -23,7 +23,6 @@
 - 图标颜色不变；若配合使用同样带彩色背景的主题，二选一即可（同时开会叠加染色）
 - 编辑器内的 `#标签#` 保持思源原色
 
-## 安装
+## 反馈
 
-把仓库内容（plugin.json / index.js / i18n / icon.png）放进
-`工作空间/data/plugins/colorful-doc-tree/` → 重启思源 → 设置 → 集市 → 已下载 → 启用。
+如有需要改进的地方，欢迎提交 [Issues](https://github.com/lamp3721/colorful-doc-tree/issues)。
