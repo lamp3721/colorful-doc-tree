@@ -1,6 +1,6 @@
 {
   "name": "colorful-doc-tree",
-  "version": "0.5.0",
+  "version": "0.5.4",
   "description": "彩色文档树：按笔记本一色染底",
   "main": "index.js",
   "scripts": {
