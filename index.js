@@ -350,12 +350,6 @@ function buildSetting(siyuan2, i18n) {
   });
   styleRow.append(styleName, styleSel);
   gBase.append(styleRow);
-  const alphaBox = mkSlider(L.alpha || "\u67D3\u8272\u6D53\u5EA6", "alpha", 5, 40, () => Math.round(cfg.alpha * 100), (v) => {
-    cfg.alpha = v / 100;
-  }, (v) => v + "%");
-  gBase.append(alphaBox);
-  const alphaSl = alphaBox.querySelector("input");
-  if (alphaSl) alphaSl.addEventListener("input", refreshPreview);
   const gTone = mkGroup(L.gTone || "\u5168\u5C40\u8272\u8C03", false);
   const toneRow = document.createElement("div");
   toneRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin:6px 0";

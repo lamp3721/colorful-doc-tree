@@ -134,10 +134,6 @@ export function buildSetting(siyuan, i18n) {
     gBase.append(styleRow);
     // 浓度滑条（v0.5.7 并回基础组：全局色板已删——"选蓝全变蓝"与多本
     // 异色的设计冲突，语义立不住；全局回归哈希自动+浓度）
-    const alphaBox = mkSlider(L.alpha || "染色浓度", "alpha", 5, 40, () => Math.round(cfg.alpha * 100), (v) => { cfg.alpha = v / 100; }, (v) => v + "%");
-    gBase.append(alphaBox);
-    const alphaSl = alphaBox.querySelector("input");
-    if (alphaSl) alphaSl.addEventListener("input", refreshPreview);
     // ── 全局色调（v0.6.1：色板+三滑条协作）──
     // v0.5.6 教训：选色后滑条不跟（起点断裂，选蓝出灰蓝）；v0.6.0 错误：
     // 矫枉过正砍滑条（按主题配色需要三参精修）。正解：色板选色把 hexToHsl
