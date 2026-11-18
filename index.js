@@ -389,7 +389,10 @@ class ColorfulDocTree extends siyuan.Plugin {
         // ── 分组三：笔记本颜色 ──
         const gNb = mkGroup((L.nbColors || "笔记本颜色") + "（" + (L.nbColorsDesc || "手动优先，其余自动") + "）", true);
         const nbBox = document.createElement("div");
-        nbBox.style.cssText = "display:flex;flex-direction:column;gap:4px";
+        // 列表内部滚动上限（v0.4.3）：笔记本多时不许顶高面板——
+        // max-height 12 行（每行 26px 出头）+ 内部滚动；分组外的整体
+        // 70vh 上限仍兜底（设置→打开的面板本身）
+        nbBox.style.cssText = "display:flex;flex-direction:column;gap:4px;max-height:288px;overflow-y:auto";
         gNb.append(nbBox);
         fetch("/api/notebook/lsNotebooks", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
             .then((r) => r.json())
