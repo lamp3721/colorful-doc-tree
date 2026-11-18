@@ -120,7 +120,7 @@ class ColorfulDocTree extends siyuan.Plugin {
             // —— 形态一：整块背景（跨行距缝 + 块首/末圆角 + 块间留缝）——
             'html[data-cftree="on"][data-cftreestyle="block"] .file-tree.sy__file .b3-list-item[data-nb-walked]::after {' +
             '  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;' +
-            "  background: oklch(var(--nb-l, " + this.cfg.light + ")% var(--nb-s, " + this.cfg.chroma + ") var(--nb-h, 231) / " + a + ");" +
+            "  background: oklch(var(--nb-l, " + this.cfg.light + "%) var(--nb-s, " + this.cfg.chroma + ") var(--nb-h, 231) / " + a + ");" +
             "}\n" +
             'html[data-cftree="on"][data-cftreestyle="block"] .file-tree.sy__file .b3-list-item[data-nb-walked]::after {' +
             "  inset-block: -1px;" +
@@ -140,7 +140,7 @@ class ColorfulDocTree extends siyuan.Plugin {
             'html[data-cftree="on"][data-cftreestyle="bar"] .file-tree .b3-list-item[data-nb-walked]::after {' +
             '  content: ""; position: absolute; z-index: -1; pointer-events: none;' +
             "  width: 3px; inset-inline: 0 auto; inset-block: -1px;" +
-            "  background: oklch(var(--nb-l, " + this.cfg.light + ")% var(--nb-s, " + this.cfg.chroma + ") var(--nb-h, 231));" +
+            "  background: oklch(var(--nb-l, " + this.cfg.light + "%) var(--nb-s, " + this.cfg.chroma + ") var(--nb-h, 231));" +
             "}\n" +
             // 轨道顶点（块首行）：上端外圆角——顶左角收，顶右角保持直边贴行首
             'html[data-cftree="on"][data-cftreestyle="bar"] .file-tree .b3-list-item[data-nb-block-start]::after {' +
@@ -240,8 +240,10 @@ class ColorfulDocTree extends siyuan.Plugin {
                 if (ov) {
                     const o = typeof ov === "number" ? { h: ov } : ov;
                     h = o.h;
-                    li.style.setProperty("--nb-s", String(o.s));
-                    li.style.setProperty("--nb-l", String(o.l));
+                    // 仅在自定义值存在时写（快捷色 {h} 无 s/l——undefined 会算出
+                    // NaN 写进变量，公式整条作废变透明，v0.4.5 事故根因之二）
+                    if (typeof o.s === "number") li.style.setProperty("--nb-s", String(Math.round(o.s) / 100));
+                    if (typeof o.l === "number") li.style.setProperty("--nb-l", String(Math.round(o.l) + "%"));
                 } else {
                     h = hashHue(li.getAttribute("data-tree-key") || "");
                     if (h === prevHue) h = HUES[(HUES.indexOf(h) + 1) % HUES.length];
