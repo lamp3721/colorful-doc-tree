@@ -1,7 +1,7 @@
 /** 彩色文档树 — 构建产物（源码 src/*.js，勿手改；构建：npm run build） */
 
 // src/shared/config.js
-var DEFAULTS = { enabled: true, alpha: 0.14, chroma: 0.12, light: 62, style: "block" };
+var DEFAULTS = { enabled: true, alpha: 0.16, chroma: 0.11, light: 62, style: "block" };
 var CFG_KEY = "config.json";
 var cfg = Object.assign({}, DEFAULTS);
 if (typeof cfg.overrides !== "object" || cfg.overrides === null) cfg.overrides = {};
@@ -396,6 +396,8 @@ function buildSetting(siyuan2, i18n) {
   gTone.append(toneRow, sAlpha, sChroma, sLight);
   const TONE_PRESETS = {
     soft: { alpha: 0.12, chroma: 0.08, light: 64 },
+    normal: { alpha: 0.16, chroma: 0.11, light: 62 },
+    // 默认档（v0.6.8）：介于柔和/鲜明之间
     vivid: { alpha: 0.24, chroma: 0.16, light: 58 }
   };
   const tpRow = document.createElement("div");
@@ -408,7 +410,7 @@ function buildSetting(siyuan2, i18n) {
     const b = document.createElement("button");
     b.className = "b3-button b3-button--outline";
     b.style.marginLeft = "8px";
-    b.textContent = key === "soft" ? L.soft || "\u67D4\u548C" : L.vivid || "\u9C9C\u660E";
+    b.textContent = key === "soft" ? L.soft || "\u67D4\u548C" : key === "normal" ? L.normal || "\u9002\u4E2D" : L.vivid || "\u9C9C\u660E";
     b.onclick = () => {
       Object.assign(cfg, TONE_PRESETS[key]);
       applyStyle();

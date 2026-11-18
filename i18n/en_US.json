@@ -24,5 +24,6 @@
   "baseColor": "Base color",
   "resetAll": "Reset all to auto",
   "soft": "Soft",
-  "vivid": "Vivid"
+  "vivid": "Vivid",
+  "normal": "Normal"
 }

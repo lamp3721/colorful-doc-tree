@@ -5,7 +5,7 @@
  * 防抖 1500ms（saveData 会广播 data change，密集落盘曾引发插件重载闪烁，
  * 见 main.js onDataChanged 覆写）。
  */
-export const DEFAULTS = { enabled: true, alpha: 0.14, chroma: 0.12, light: 62, style: "block" };
+export const DEFAULTS = { enabled: true, alpha: 0.16, chroma: 0.11, light: 62, style: "block" };   // = 适中档
 export const CFG_KEY = "config.json";
 
 export const cfg = Object.assign({}, DEFAULTS);

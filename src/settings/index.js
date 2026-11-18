@@ -184,8 +184,9 @@ export function buildSetting(siyuan, i18n) {
     // 预设（v0.6.7）：柔和/鲜明——基色+三参数整套，一键即达（在色板选好
     // 基色后用预设快速试质感，滑条同步显示，想微调继续拖）
     const TONE_PRESETS = {
-        soft:  { alpha: 0.12, chroma: 0.08, light: 64 },
-        vivid: { alpha: 0.24, chroma: 0.16, light: 58 },
+        soft:   { alpha: 0.12, chroma: 0.08, light: 64 },
+        normal: { alpha: 0.16, chroma: 0.11, light: 62 },   // 默认档（v0.6.8）：介于柔和/鲜明之间
+        vivid:  { alpha: 0.24, chroma: 0.16, light: 58 },
     };
     const tpRow = document.createElement("div");
     tpRow.style.cssText = "margin-top:6px";
@@ -197,7 +198,8 @@ export function buildSetting(siyuan, i18n) {
         const b = document.createElement("button");
         b.className = "b3-button b3-button--outline";
         b.style.marginLeft = "8px";
-        b.textContent = key === "soft" ? (L.soft || "柔和") : (L.vivid || "鲜明");
+        b.textContent = key === "soft" ? (L.soft || "柔和")
+            : key === "normal" ? (L.normal || "适中") : (L.vivid || "鲜明");
         b.onclick = () => {
             Object.assign(cfg, TONE_PRESETS[key]);   // 基色保留（用户选的），只调质感三参
             applyStyle();
