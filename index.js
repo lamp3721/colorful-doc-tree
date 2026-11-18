@@ -230,10 +230,6 @@ function clearMarks() {
 }
 
 // src/settings/index.js
-var PRESETS = {
-  soft: { alpha: 0.12, chroma: 0.08, light: 64 },
-  vivid: { alpha: 0.24, chroma: 0.15, light: 60 }
-};
 function buildSetting(siyuan2, i18n) {
   const L = i18n || {};
   const mkSlider = (label, key, min, max, getVal, setVal, fmt) => {
@@ -325,41 +321,29 @@ function buildSetting(siyuan2, i18n) {
   });
   styleRow.append(styleName, styleSel);
   gBase.append(styleRow);
-  const gColor = mkGroup(L.gColor || "\u989C\u8272\u8C03\u6574", true);
+  const gColor = mkGroup(L.gColor || "\u5168\u5C40\u67D3\u8272\u8272", true);
+  const baseRow = document.createElement("div");
+  baseRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin:6px 0";
+  const baseName = document.createElement("span");
+  baseName.textContent = L.baseColor || "\u67D3\u8272\u989C\u8272";
+  const baseSwatch = document.createElement("input");
+  baseSwatch.type = "color";
+  baseSwatch.className = "b3-color-picker";
+  baseSwatch.style.cssText = "width:52px;height:26px;padding:0;border:1px solid var(--b3-border-color);background:transparent;cursor:pointer";
+  baseSwatch.value = cfg.__baseHex || hslToHex(210, cfg.chroma, cfg.light / 100);
+  baseSwatch.addEventListener("input", () => {
+    const { h, ss, ll } = hexToHsl(baseSwatch.value);
+    cfg.__baseHex = baseSwatch.value;
+    cfg.chroma = Math.round(ss * 100) / 100;
+    cfg.light = Math.round(ll * 100);
+    applyStyle();
+    persistSoon();
+  });
+  baseRow.append(baseName, baseSwatch);
+  gColor.append(baseRow);
   gColor.append(mkSlider(L.alpha || "\u67D3\u8272\u6D53\u5EA6", "alpha", 5, 40, () => Math.round(cfg.alpha * 100), (v) => {
     cfg.alpha = v / 100;
   }, (v) => v + "%"));
-  gColor.append(mkSlider(L.chroma || "\u9971\u548C\u5EA6", "chroma", 0, 20, () => Math.round(cfg.chroma * 100), (v) => {
-    cfg.chroma = v / 100;
-  }, (v) => v + "%"));
-  gColor.append(mkSlider(L.light || "\u660E\u5EA6", "light", 40, 80, () => cfg.light, (v) => {
-    cfg.light = v;
-  }, (v) => v + "%"));
-  const pRow = document.createElement("div");
-  pRow.style.marginTop = "10px";
-  const pName = document.createElement("span");
-  pName.textContent = (L.preset || "\u9884\u8BBE") + "\uFF1A";
-  pName.style.fontSize = "12px";
-  pRow.append(pName);
-  [["soft", "\u67D4\u548C"], ["vivid", "\u9C9C\u660E"]].forEach(([key, label]) => {
-    const b = document.createElement("button");
-    b.className = "b3-button b3-button--outline";
-    b.style.marginLeft = "8px";
-    b.textContent = label;
-    b.onclick = () => {
-      Object.assign(cfg, PRESETS[key] || {});
-      applyStyle();
-      persistSoon();
-      ["alpha", "chroma", "light"].forEach((k) => {
-        const sl = gColor.querySelector('[data-key="' + k + '"]');
-        if (!sl) return;
-        sl.value = String(k === "alpha" ? Math.round(cfg.alpha * 100) : k === "chroma" ? Math.round(cfg.chroma * 100) : cfg.light);
-        sl.dispatchEvent(new Event("input"));
-      });
-    };
-    pRow.append(b);
-  });
-  gColor.append(pRow);
   const gNb = mkGroup((L.nbColors || "\u7B14\u8BB0\u672C\u989C\u8272") + "\uFF08" + (L.nbColorsDesc || "\u624B\u52A8\u4F18\u5148\uFF0C\u5176\u4F59\u81EA\u52A8") + "\uFF09", true);
   const nbBox = document.createElement("div");
   nbBox.style.cssText = "display:flex;flex-direction:column;gap:4px;max-height:288px;overflow-y:auto";

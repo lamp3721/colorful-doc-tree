@@ -15,9 +15,10 @@
   "auto": "自动（哈希）",
   "noNotebooks": "（未获取到笔记本）",
   "gBasic": "基础",
-  "gColor": "颜色调整",
+  "gColor": "全局染色色",
   "preset": "预设",
   "custom": "自定义",
   "clearCustom": "清除自定义",
-  "customDots": "自定义…"
+  "customDots": "自定义…",
+  "baseColor": "染色颜色"
 }

@@ -107,38 +107,34 @@ export function buildSetting(siyuan, i18n) {
     });
     styleRow.append(styleName, styleSel);
     gBase.append(styleRow);
-    // ── 分组二：颜色调整 ──
-    const gColor = mkGroup(L.gColor || "颜色调整", true);
-    gColor.append(mkSlider(L.alpha || "染色浓度", "alpha", 5, 40, () => Math.round(cfg.alpha * 100), (v) => { cfg.alpha = v / 100; }, (v) => v + "%"));
-    gColor.append(mkSlider(L.chroma || "饱和度", "chroma", 0, 20, () => Math.round(cfg.chroma * 100), (v) => { cfg.chroma = v / 100; }, (v) => v + "%"));
-    gColor.append(mkSlider(L.light || "明度", "light", 40, 80, () => cfg.light, (v) => { cfg.light = v; }, (v) => v + "%"));
-    const pRow = document.createElement("div");
-    pRow.style.marginTop = "10px";
-    const pName = document.createElement("span");
-    pName.textContent = (L.preset || "预设") + "：";
-    pName.style.fontSize = "12px";
-    pRow.append(pName);
-    [["soft", "柔和"], ["vivid", "鲜明"]].forEach(([key, label]) => {
-        const b = document.createElement("button");
-        b.className = "b3-button b3-button--outline";
-        b.style.marginLeft = "8px";
-        b.textContent = label;
-        b.onclick = () => {
-            Object.assign(cfg, PRESETS[key] || {});
-            applyStyle();
-            persistSoon();
-            // 刷新三个滑条：先写新 value 再触发 input（handler 读 value 同步标签）
-            ["alpha", "chroma", "light"].forEach((k) => {
-                const sl = gColor.querySelector('[data-key="' + k + '"]');
-                if (!sl) return;
-                sl.value = String(k === "alpha" ? Math.round(cfg.alpha * 100)
-                    : k === "chroma" ? Math.round(cfg.chroma * 100) : cfg.light);
-                sl.dispatchEvent(new Event("input"));
-            });
-        };
-        pRow.append(b);
+    // ── 分组二：全局染色色（v0.5.6 重设计）──
+    // 旧三滑条（浓度/饱和/明度）模型缺陷实锤：用户锁定色相选"蓝"，
+    // 另两个全局滑条在背后偷改最终色——"选蓝出灰蓝"。改为单色板所见即所得：
+    // 选什么色就是什么色（hex 存储，选色时换算回 chroma/light 写 cfg，
+    // 渲染层零改动）；透明度单独留一个滑条（叠层需要）。
+    const gColor = mkGroup(L.gColor || "全局染色色", true);
+    const baseRow = document.createElement("div");
+    baseRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin:6px 0";
+    const baseName = document.createElement("span");
+    baseName.textContent = L.baseColor || "染色颜色";
+    const baseSwatch = document.createElement("input");
+    baseSwatch.type = "color";
+    baseSwatch.className = "b3-color-picker";
+    baseSwatch.style.cssText = "width:52px;height:26px;padding:0;border:1px solid var(--b3-border-color);background:transparent;cursor:pointer";
+    // cfg → 初值 hex（无存档时以默认 62%/12% 合成一个中性底色）
+    baseSwatch.value = cfg.__baseHex || hslToHex(210, cfg.chroma, cfg.light / 100);
+    baseSwatch.addEventListener("input", () => {
+        const { h, ss, ll } = hexToHsl(baseSwatch.value);
+        cfg.__baseHex = baseSwatch.value;
+        cfg.chroma = Math.round(ss * 100) / 100;   // 饱和（0~1）
+        cfg.light = Math.round(ll * 100);           // 明度（百分比数）
+        applyStyle();
+        persistSoon();
     });
-    gColor.append(pRow);
+    baseRow.append(baseName, baseSwatch);
+    gColor.append(baseRow);
+    // 透明度（唯一保留的滑条：叠层染色必须有浓度概念）
+    gColor.append(mkSlider(L.alpha || "染色浓度", "alpha", 5, 40, () => Math.round(cfg.alpha * 100), (v) => { cfg.alpha = v / 100; }, (v) => v + "%"));
     // ── 分组三：笔记本颜色 ──
     const gNb = mkGroup((L.nbColors || "笔记本颜色") + "（" + (L.nbColorsDesc || "手动优先，其余自动") + "）", true);
     const nbBox = document.createElement("div");

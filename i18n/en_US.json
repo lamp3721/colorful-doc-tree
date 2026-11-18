@@ -15,9 +15,10 @@
   "auto": "Auto (hash)",
   "noNotebooks": "(No notebooks found)",
   "gBasic": "Basics",
-  "gColor": "Color",
+  "gColor": "Global tint color",
   "preset": "Preset",
   "custom": "Custom",
   "clearCustom": "Clear custom",
-  "customDots": "Custom…"
+  "customDots": "Custom…",
+  "baseColor": "Tint color"
 }
