@@ -88,7 +88,14 @@ class ColorfulDocTree extends siyuan.Plugin {
         this.buildSetting();
     }
 
+    // 覆写即免重载（plugin/lifecycle.ts:469——未覆写时 data change 任务原位
+    // 提升为 reload）。本实例内存 cfg 即权威，自身写入无需回读；跨实例变更
+    // 极罕见，接受重开面板时读到新值
+    onDataChanged() {}
+
     onunload() {
+        if (this._saveTimer) { clearTimeout(this._saveTimer); this._saveTimer = 0; }
+        this.persist();
         this.stopWatchers();
         const style = document.getElementById(STYLE_ID);
         if (style) style.remove();
@@ -593,8 +600,10 @@ class ColorfulDocTree extends siyuan.Plugin {
     }
 
     persistSoon() {
+        // 1500ms 防抖（v0.4.10：300ms 时拖滑条 = 连续落盘 = 连续 data change）；
+        // onunload 时 persist 兜底 flush
         clearTimeout(this._saveTimer);
-        this._saveTimer = setTimeout(() => this.persist(), 300);
+        this._saveTimer = setTimeout(() => this.persist(), 1500);
     }
 }
 
