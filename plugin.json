@@ -1,0 +1,20 @@
+{
+  "name": "colorful-doc-tree",
+  "author": "lamp3721",
+  "url": "https://gitea.eeccc.cc/admin/siyuan-plugin-colorful-doc-tree",
+  "version": "0.1.0",
+  "minAppVersion": "3.7.1",
+  "displayName": {
+    "default": "Colorful Doc Tree",
+    "zh_CN": "彩色文档树"
+  },
+  "description": {
+    "default": "Tint doc-tree rows per notebook (one color per notebook) and color the tag panel. Text and icons untouched.",
+    "zh_CN": "按笔记本一色给文档树行染底（块状连续、块间留缝），标签面板按标签名染色；文字与图标一律不动。"
+  },
+  "readme": {
+    "default": "README.md",
+    "zh_CN": "README_zh_CN.md"
+  },
+  "funding": {}
+}

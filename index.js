@@ -1,0 +1,261 @@
+/**
+ * 彩色文档树 —— 按笔记本一色给文档树染底 + 标签面板按名染色
+ *
+ * 机制（与主题版同构，独立零依赖）：
+ *   · 面板级 MutationObserver 跟踪 .file-tree（文档树是虚拟化 DOM，
+ *     行随滚动/开合变化）——走查给每行打 --nb-h 色相：
+ *     文档树 = notebook 行 data-tree-key 哈希定色、子行继承到下一笔记本行；
+ *     标签面板 = 标签名哈希。
+ *   · CSS ::after 低透明叠层染底（isolation 隔离在行内），块首/末圆角、
+ *     块间留缝——同一笔记本连成一整块。文字/图标一律不动。
+ *
+ * 回环防护：走查写行 style 会触发 observer（filter 含 style）——
+ *   走查窗口 disconnect→walk→re-observe 根治（甄别法全败，勿再试）。
+ * 边界纪律：只观察面板容器，绝不进编辑器内容区（.protyle-wysiwyg）。
+ *
+ * 入口：装上即生效（默认开）。命令面板两条：切换 / 设置
+ * （开关 + 染色浓度滑条，持久化走 kernel plugin data）。
+ */
+const siyuan = require("siyuan");
+
+const STYLE_ID = "colorful-doc-tree-style";
+const CFG_KEY = "config.json";
+// 10 档色相调色板（暗亮主题通用：染底是低透明叠层）
+const HUES = [20, 50, 85, 120, 150, 180, 210, 245, 285, 325];
+const DEFAULTS = { enabled: true, alpha: 0.14 };
+
+function hashHue(key) {
+    let h = 5381;
+    for (let i = 0; i < key.length; i++) h = ((h << 5) + h + key.charCodeAt(i)) >>> 0;
+    // 雪崩混合（djb2 直取模混合不足）；注意位运算产带符号数，取模前归无符号
+    h ^= h >>> 16; h = (h * 0x7feb352d) >>> 0;
+    h ^= h >>> 15; h = (h * 0x846ca68b) >>> 0;
+    h ^= h >>> 16;
+    return HUES[(h >>> 0) % HUES.length];
+}
+
+class ColorfulDocTree extends siyuan.Plugin {
+    constructor(options) {
+        super(options);
+        this.cfg = Object.assign({}, DEFAULTS);
+        this.panelObservers = [];
+        this.dockObserver = null;
+        this._onMouseup = null;
+        this._lastScan = 0;
+    }
+
+    async onload() {
+        try {
+            const saved = await this.loadData(CFG_KEY);
+            if (saved && typeof saved === "object") Object.assign(this.cfg, saved);
+        } catch (e) {}
+        this.applyStyle();
+        if (this.cfg.enabled) this.startWatchers();
+        this.addCommand({ command: "toggle", hotkey: "", callback: () => this.toggle() });
+        this.addCommand({ command: "settings", hotkey: "", callback: () => this.openSettings() });
+    }
+
+    onunload() {
+        this.stopWatchers();
+        const style = document.getElementById(STYLE_ID);
+        if (style) style.remove();
+        delete document.documentElement.dataset.cftree;
+        this.clearMarks();
+    }
+
+    // ---- 配置与样式 ----
+
+    persist() { this.saveData(CFG_KEY, this.cfg); }
+
+    applyStyle() {
+        let el = document.getElementById(STYLE_ID);
+        if (!el) {
+            el = document.createElement("style");
+            el.id = STYLE_ID;
+            document.head.appendChild(el);
+        }
+        document.documentElement.dataset.cftree = this.cfg.enabled ? "on" : "off";
+        const a = this.cfg.alpha;
+        // 与主题版同款公式：oklch 固定亮度饱和度只变色相；
+        // 行自建层叠上下文（isolation）防染层穿到面板背景后（z-index:-1）
+        el.textContent =
+            'html[data-cftree="on"] .file-tree .b3-list-item[data-nb-walked] {' +
+            "  position: relative; isolation: isolate;" +
+            "}\n" +
+            'html[data-cftree="on"] .file-tree.sy__file .b3-list-item[data-nb-walked]::after,' +
+            'html[data-cftree="on"] .file-tree.sy__tag .b3-list-item[data-nb-walked]::after {' +
+            '  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;' +
+            "  background: oklch(50% 0.07 var(--nb-h, 231) / " + a + ");" +
+            "}\n" +
+            // 文档树：整块连续（跨行距缝）+ 块首/末圆角 + 块间留缝
+            'html[data-cftree="on"] .file-tree.sy__file .b3-list-item[data-nb-walked]::after {' +
+            "  inset-block: -1px;" +
+            "}\n" +
+            'html[data-cftree="on"] .file-tree.sy__file .b3-list-item[data-nb-block-start]::after {' +
+            "  top: 3px; border-top-left-radius: 6px; border-top-right-radius: 6px;" +
+            "}\n" +
+            'html[data-cftree="on"] .file-tree.sy__file .b3-list-item[data-nb-block-end]::after {' +
+            "  bottom: 3px; border-bottom-left-radius: 6px; border-bottom-right-radius: 6px;" +
+            "}";
+    }
+
+    toggle() {
+        this.cfg.enabled = !this.cfg.enabled;
+        this.persist();
+        this.applyStyle();
+        if (this.cfg.enabled) this.startWatchers();
+        else { this.stopWatchers(); this.clearMarks(); }
+    }
+
+    // ---- 观察 ----
+
+    startWatchers() {
+        if (this._onMouseup) return;
+        this._onMouseup = () => this.scan();
+        document.addEventListener("mouseup", this._onMouseup);
+        const cfg = { childList: true, subtree: true, attributeFilter: ["style", "class", "data-type"] };
+        this._obsCfg = cfg;
+        if (!this.dockObserver) {
+            this.dockObserver = new MutationObserver(() => this.scan());
+            ["dockLeft", "dockRight"].forEach((id) => {
+                const dock = document.getElementById(id);
+                if (dock) this.dockObserver.observe(dock, { childList: true });
+            });
+        }
+        // 重新启用必须立即挂载——scan 的 2s 节流是给 mouseup 发现路径的，
+        // 不放行会把重开后的染色拖到 2s 后的鼠标事件（v0.1.0 实测 bug）
+        this.scan(true);
+    }
+
+    stopWatchers() {
+        if (this._onMouseup) { document.removeEventListener("mouseup", this._onMouseup); this._onMouseup = null; }
+        if (this.dockObserver) { this.dockObserver.disconnect(); this.dockObserver = null; }
+        this.panelObservers.forEach((po) => po.obs.disconnect());
+        this.panelObservers = [];
+        document.querySelectorAll("[data-nb-obs]").forEach((p) => p.removeAttribute("data-nb-obs"));
+    }
+
+    scan(force) {
+        if (!force && Date.now() - this._lastScan < 2000) return;
+        this._lastScan = Date.now();
+        const panels = document.querySelectorAll(".file-tree.sy__file, .file-tree.sy__tag");
+        panels.forEach((p) => this.attach(p));
+    }
+
+    attach(panel) {
+        if (panel.hasAttribute("data-nb-obs")) return;
+        panel.setAttribute("data-nb-obs", "1");
+        const po = { panel, obs: null };
+        po.obs = new MutationObserver(() => this.walkWindow(panel));
+        po.obs.observe(panel, this._obsCfg);
+        this.panelObservers.push(po);
+        this.walkWindow(panel);
+    }
+
+    // 走查窗口（回环根治）：disconnect → walk → finally re-observe
+    walkWindow(panel) {
+        const po = this.panelObservers.find((o) => o.panel === panel);
+        if (!po) { this.walk(panel); return; }
+        po.obs.disconnect();
+        try { this.walk(panel); } finally { po.obs.observe(panel, this._obsCfg); }
+    }
+
+    walk(panel) {
+        if (panel.classList.contains("sy__file")) this.walkTree(panel);
+        else if (panel.classList.contains("sy__tag")) this.walkTags(panel);
+    }
+
+    walkTree(panel) {
+        const rows = Array.prototype.slice.call(panel.querySelectorAll("li[aria-level]"));
+        const valid = rows.filter((li) => !li.closest(".file-tree__pins") &&
+            parseInt(li.getAttribute("aria-level"), 10) >= 1);
+        let hue;
+        const isNb = (li) => {
+            const dt = li.getAttribute("data-type");
+            return dt === "navigation-root" || dt === "navigation-closed";
+        };
+        for (let i = 0; i < valid.length; i++) {
+            const li = valid[i];
+            if (isNb(li)) hue = hashHue(li.getAttribute("data-tree-key") || "");
+            this.setHue(li, hue);
+            // 块边界：首=notebook 行；末=下一有效行是 notebook 行或走到尾
+            const blockEnd = i + 1 >= valid.length || isNb(valid[i + 1]);
+            this.setAttr(li, "data-nb-block-start", isNb(li));
+            this.setAttr(li, "data-nb-block-end", blockEnd);
+        }
+    }
+
+    walkTags(panel) {
+        panel.querySelectorAll("li.b3-list-item").forEach((li) => {
+            const name = (li.querySelector(".b3-list-item__text") || li).textContent || "";
+            this.setHue(li, hashHue(name));
+            this.setAttr(li, "data-nb-block-start", false);
+            this.setAttr(li, "data-nb-block-end", false);
+        });
+    }
+
+    setHue(li, hue) {
+        const st = li.style;
+        if (hue === undefined || hue === null) {
+            if (st.getPropertyValue("--nb-h")) st.removeProperty("--nb-h");
+        } else if (st.getPropertyValue("--nb-h") !== String(hue)) {
+            st.setProperty("--nb-h", String(hue));
+        }
+        if (!li.hasAttribute("data-nb-walked")) li.setAttribute("data-nb-walked", "");
+    }
+
+    setAttr(li, name, on) {
+        if (on && !li.hasAttribute(name)) li.setAttribute(name, "");
+        else if (!on && li.hasAttribute(name)) li.removeAttribute(name);
+    }
+
+    clearMarks() {
+        document.querySelectorAll("[data-nb-walked]").forEach((li) => {
+            li.style.removeProperty("--nb-h");
+            li.removeAttribute("data-nb-walked");
+            li.removeAttribute("data-nb-block-start");
+            li.removeAttribute("data-nb-block-end");
+        });
+    }
+
+    // ---- 设置对话框 ----
+
+    openSettings() {
+        const L = this.i18n || {};
+        const dialog = new siyuan.Dialog({
+            title: L.settings || "彩色文档树设置",
+            content:
+                '<div style="padding:16px">' +
+                '<label class="fn__flex" style="align-items:center;justify-content:space-between;margin-bottom:16px">' +
+                    '<span>' + (L.enabled || "启用彩色背景") + '</span>' +
+                    '<input class="b3-switch" type="checkbox"' + (this.cfg.enabled ? " checked" : "") + ' data-cfg="enabled">' +
+                "</label>" +
+                '<label class="fn__flex" style="align-items:center;justify-content:space-between">' +
+                    '<span>' + (L.alpha || "染色浓度") + ' <b data-alpha-val>' + Math.round(this.cfg.alpha * 100) + "%</b></span>" +
+                    '<input class="b3-slider" type="range" min="5" max="30" style="width:180px" value="' + Math.round(this.cfg.alpha * 100) + '" data-cfg="alpha">' +
+                "</label>" +
+                '<div style="margin-top:24px;text-align:center">' +
+                    '<button class="b3-button b3-button--outline" data-cfg="save">' + (L.save || "保存") + "</button>" +
+                "</div></div>",
+            width: "420px",
+        });
+        const root = dialog.element;
+        const sw = root.querySelector('[data-cfg="enabled"]');
+        const slider = root.querySelector('[data-cfg="alpha"]');
+        const val = root.querySelector("[data-alpha-val]");
+        if (slider) slider.oninput = () => { if (val) val.textContent = slider.value + "%"; };
+        const saveBtn = root.querySelector('[data-cfg="save"]');
+        if (saveBtn) saveBtn.onclick = () => {
+            const wasOn = this.cfg.enabled;
+            if (sw) this.cfg.enabled = sw.checked;
+            if (slider) this.cfg.alpha = parseInt(slider.value, 10) / 100;
+            this.persist();
+            this.applyStyle();
+            if (this.cfg.enabled && !wasOn) this.startWatchers();
+            if (!this.cfg.enabled && wasOn) { this.stopWatchers(); this.clearMarks(); }
+            dialog.destroy();
+        };
+    }
+}
+
+module.exports = ColorfulDocTree;
