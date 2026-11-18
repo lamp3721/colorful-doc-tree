@@ -5,5 +5,8 @@
   "alpha": "Tint opacity",
   "save": "Save",
   "light": "Lightness",
-  "chroma": "Chroma"
+  "chroma": "Chroma",
+  "style": "Render style",
+  "styleBlock": "Block background",
+  "styleBar": "Leading color bar"
 }

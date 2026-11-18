@@ -5,5 +5,8 @@
   "alpha": "染色浓度",
   "save": "保存",
   "light": "明度",
-  "chroma": "饱和度"
+  "chroma": "饱和度",
+  "style": "渲染形态",
+  "styleBlock": "整块背景",
+  "styleBar": "行首色条"
 }

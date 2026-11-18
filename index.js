@@ -27,7 +27,7 @@ const CFG_KEY = "config.json";
 // v0.1.1 调优：避开暗底下浑浊的色相区（原 20 橙棕/325 品红偏闷），
 // 十档在明度感知上尽量均匀（黄绿区密集是感知特性）
 const HUES = [15, 45, 90, 140, 170, 200, 230, 262, 298, 335];
-const DEFAULTS = { enabled: true, alpha: 0.14, chroma: 0.12, light: 62 };
+const DEFAULTS = { enabled: true, alpha: 0.14, chroma: 0.12, light: 62, style: "block" };
 // 预设：柔和（低饱和淡染）/ 鲜明（高饱和浓染）
 const PRESETS = { soft: { alpha: 0.12, chroma: 0.08, light: 64 }, vivid: { alpha: 0.24, chroma: 0.15, light: 60 } };
 
@@ -68,6 +68,7 @@ class ColorfulDocTree extends siyuan.Plugin {
         const style = document.getElementById(STYLE_ID);
         if (style) style.remove();
         delete document.documentElement.dataset.cftree;
+        delete document.documentElement.dataset.cftreestyle;
         this.clearMarks();
     }
 
@@ -83,6 +84,7 @@ class ColorfulDocTree extends siyuan.Plugin {
             document.head.appendChild(el);
         }
         document.documentElement.dataset.cftree = this.cfg.enabled ? "on" : "off";
+        document.documentElement.dataset.cftreestyle = this.cfg.style === "bar" ? "bar" : "block";
         const a = this.cfg.alpha;
         // 与主题版同款公式：oklch 固定亮度饱和度只变色相；
         // 行自建层叠上下文（isolation）防染层穿到面板背景后（z-index:-1）
@@ -90,20 +92,34 @@ class ColorfulDocTree extends siyuan.Plugin {
             'html[data-cftree="on"] .file-tree .b3-list-item[data-nb-walked] {' +
             "  position: relative; isolation: isolate;" +
             "}\n" +
-            'html[data-cftree="on"] .file-tree.sy__file .b3-list-item[data-nb-walked]::after,' +
-            'html[data-cftree="on"] .file-tree.sy__tag .b3-list-item[data-nb-walked]::after {' +
+            // —— 形态一：整块背景（跨行距缝 + 块首/末圆角 + 块间留缝）——
+            'html[data-cftree="on"][data-cftreestyle="block"] .file-tree.sy__file .b3-list-item[data-nb-walked]::after,' +
+            'html[data-cftree="on"][data-cftreestyle="block"] .file-tree.sy__tag .b3-list-item[data-nb-walked]::after {' +
             '  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;' +
             "  background: oklch(" + this.cfg.light + "% " + this.cfg.chroma + " var(--nb-h, 231) / " + a + ");" +
             "}\n" +
-            // 文档树：整块连续（跨行距缝）+ 块首/末圆角 + 块间留缝
-            'html[data-cftree="on"] .file-tree.sy__file .b3-list-item[data-nb-walked]::after {' +
+            'html[data-cftree="on"][data-cftreestyle="block"] .file-tree.sy__file .b3-list-item[data-nb-walked]::after {' +
             "  inset-block: -1px;" +
             "}\n" +
-            'html[data-cftree="on"] .file-tree.sy__file .b3-list-item[data-nb-block-start]::after {' +
+            'html[data-cftree="on"][data-cftreestyle="block"] .file-tree.sy__file .b3-list-item[data-nb-block-start]::after {' +
             "  top: 3px; border-top-left-radius: 6px; border-top-right-radius: 6px;" +
             "}\n" +
-            'html[data-cftree="on"] .file-tree.sy__file .b3-list-item[data-nb-block-end]::after {' +
+            'html[data-cftree="on"][data-cftreestyle="block"] .file-tree.sy__file .b3-list-item[data-nb-block-end]::after {' +
             "  bottom: 3px; border-bottom-left-radius: 6px; border-bottom-right-radius: 6px;" +
+            "}\n" +
+            // —— 形态二：行首色条（3px 竖线，同笔记本连续成轨、块间留缝；
+            //     细条不吃浓度透明度——低 alpha 下不可见，直接实色，明度/饱和仍可调）——
+            'html[data-cftree="on"][data-cftreestyle="bar"] .file-tree .b3-list-item[data-nb-walked]::after {' +
+            '  content: ""; position: absolute; z-index: -1; pointer-events: none;' +
+            "  width: 3px; inset-inline: 0 auto; inset-block: -1px;" +
+            "  background: oklch(" + this.cfg.light + "% " + this.cfg.chroma + " var(--nb-h, 231));" +
+            "  border-radius: 2px;" +
+            "}\n" +
+            'html[data-cftree="on"][data-cftreestyle="bar"] .file-tree .b3-list-item[data-nb-block-start]::after {' +
+            "  top: 3px;" +
+            "}\n" +
+            'html[data-cftree="on"][data-cftreestyle="bar"] .file-tree .b3-list-item[data-nb-block-end]::after {' +
+            "  bottom: 3px;" +
             "}";
     }
 
@@ -280,6 +296,27 @@ class ColorfulDocTree extends siyuan.Plugin {
             height: "auto",
             confirmCallback: () => { this.persist(); this.applyStyle(); },
         });
+        const styleBox = document.createElement("div");
+        const styleSel = document.createElement("select");
+        styleSel.className = "b3-select";
+        styleSel.style.width = "140px";
+        [
+            ["block", L.styleBlock || "整块背景"],
+            ["bar", L.styleBar || "行首色条"],
+        ].forEach(([v, label]) => {
+            const opt = document.createElement("option");
+            opt.value = v;
+            opt.textContent = label;
+            if (this.cfg.style === v) opt.selected = true;
+            styleSel.append(opt);
+        });
+        styleSel.addEventListener("change", () => {
+            this.cfg.style = styleSel.value;
+            if (this.cfg.enabled) this.applyStyle();
+            this.persistSoon();
+        });
+        styleBox.append(styleSel);
+        setting.addItem({ title: L.style || "渲染形态", actionElement: styleBox });
         const swBox = document.createElement("div");
         const sw = document.createElement("input");
         sw.className = "b3-switch";
