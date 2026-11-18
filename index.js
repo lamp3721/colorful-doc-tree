@@ -513,9 +513,10 @@ class ColorfulDocTree extends siyuan.Plugin {
                         syncUI();
                         syncCustomPanel();
                     });
-                    // v0.4.9：自定义色专属参数区——选了色板色才展开，三滑条
-                    // （浓度/饱和/明度）各调各的，改的是这本的 override，
-                    // 即时生效；快捷色/自动时收起
+                    // v0.4.11：自定义色专属参数区可折叠——点条目行切换展开/收起
+                    // （v0.4.9 是选色即常驻展开，用户要能收起）。仅自定义色时可折，
+                    // 快捷色/自动时整体隐藏。结构：wrap=row(可点)+paramBox(显隐由折叠态定)
+                    const folded = { on: false };
                     const customBox = document.createElement("div");
                     customBox.style.cssText = "display:none;padding:2px 0 6px 0;margin-top:2px;border-top:1px dashed var(--b3-border-color)";
                     const mkNbSlider = (label, key, min, max, getVal, setVal, fmt) => {
@@ -563,18 +564,33 @@ class ColorfulDocTree extends siyuan.Plugin {
                     customBox.append(sAlpha, sChroma, sLight);
                     const syncCustomPanel = () => {
                         const o = curOv();
-                        customBox.style.display = o ? "block" : "none";
-                        if (o) {
+                        // 无自定义色：参数区整体隐藏、折叠态复位；
+                        // 有：可折叠——folded.on 时收起（条目行仍可点开）
+                        customBox.style.display = (o && !folded.on) ? "block" : "none";
+                        if (o && !folded.on) {
                             [sAlpha, sChroma, sLight].forEach((slBox) => {
                                 const sl = slBox.querySelector("input");
                                 sl.dispatchEvent(new Event("input"));
                             });
-                            // dispatch input 会写回 curOv()——刷新显示足够
                         }
                     };
+                    // 点条目行（名字区）切换折叠——有自定义色才响应；
+                    // 控件点击不冒泡误触发（select/swatch 上 stopPropagation）
+                    row.addEventListener("click", (ev) => {
+                        if (!curOv()) return;
+                        if (ev.target.closest("select, input")) return;
+                        folded.on = !folded.on;
+                        customBox.style.display = folded.on ? "none" : "block";
+                    });
                     syncUI();
                     syncCustomPanel();
                     quick.addEventListener("change", () => { setTimeout(syncCustomPanel, 0); });
+                    // 可折叠视觉暗示：有自定义色时条目名前加 ▸/▾
+                    const syncFoldMark = () => {
+                        name.textContent = (curOv() ? (folded.on ? "▸ " : "▾ ") : "") + nb.name;
+                    };
+                    row.addEventListener("click", () => setTimeout(syncFoldMark, 0));
+                    syncFoldMark();
                     ctrl.append(quick, swatch);
                     row.append(name, ctrl);
                     const wrap = document.createElement("div");
