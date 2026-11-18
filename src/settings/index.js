@@ -208,39 +208,6 @@ export function buildSetting(siyuan, i18n) {
     gBase.append(reRow);
     // ── 分组三：笔记本颜色 ──
     const gNb = mkGroup(L.nbColors || "笔记本颜色", true);
-    // 批量动作（v0.5.7 真实诉求直达）："全部统一为…"——选色全部笔记本
-    // 变它（极简党一步到位，不用一本一本点）
-    const unifyRow = document.createElement("div");
-    unifyRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding-bottom:6px;border-bottom:1px dashed var(--b3-border-color)";
-    const unifyName = document.createElement("span");
-    unifyName.style.cssText = "font-size:12px;opacity:.85";
-    unifyName.textContent = L.unifyAll || "全部统一为…";
-    const unifySwatch = document.createElement("input");
-    unifySwatch.type = "color";
-    unifySwatch.className = "b3-color-picker";
-    unifySwatch.style.cssText = "width:44px;height:24px;padding:0;border:1px solid var(--b3-border-color);background:transparent;cursor:pointer";
-    unifySwatch.value = hslToHex(210, 0.6, 0.62);
-    unifySwatch.addEventListener("input", () => {
-        const { h, ss, ll } = hexToHsl(unifySwatch.value);
-        // 所有笔记本 override 成同一完整色（所见即所得全套）
-        fetch("/api/notebook/lsNotebooks", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
-            .then((r) => r.json())
-            .then((data) => {
-                ((data && data.data && data.data.notebooks) || []).forEach((nb) => {
-                    if (nb.closed) return;
-                    cfg.overrides[nb.id] = { h: Math.round(h), s: Math.round(ss * 100), l: Math.round(ll * 100), a: 100 };
-                });
-                walkAllNow();
-                persistSoon();
-                pvBlocks.forEach(([b]) => {
-                    b.style.borderLeft = "";
-                    b.style.background = unifySwatch.value;
-                });
-            })
-            .catch((e) => console.error("[cftree] 统一配色失败:", e));
-    });
-    unifyRow.append(unifyName, unifySwatch);
-    gNb.append(unifyRow);          // v0.6.0 修复：统一行忘了挂载（测试假绿：querySelector 命中 A 行色板冒充统一色板）
     const nbBox = document.createElement("div");
     // 列表内部滚动上限（v0.4.3）：笔记本多时不许顶高面板——
     // max-height 12 行（每行 26px 出头）+ 内部滚动；分组外的整体

@@ -419,33 +419,6 @@ function buildSetting(siyuan2, i18n) {
   reRow.append(reBtn);
   gBase.append(reRow);
   const gNb = mkGroup(L.nbColors || "\u7B14\u8BB0\u672C\u989C\u8272", true);
-  const unifyRow = document.createElement("div");
-  unifyRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding-bottom:6px;border-bottom:1px dashed var(--b3-border-color)";
-  const unifyName = document.createElement("span");
-  unifyName.style.cssText = "font-size:12px;opacity:.85";
-  unifyName.textContent = L.unifyAll || "\u5168\u90E8\u7EDF\u4E00\u4E3A\u2026";
-  const unifySwatch = document.createElement("input");
-  unifySwatch.type = "color";
-  unifySwatch.className = "b3-color-picker";
-  unifySwatch.style.cssText = "width:44px;height:24px;padding:0;border:1px solid var(--b3-border-color);background:transparent;cursor:pointer";
-  unifySwatch.value = hslToHex(210, 0.6, 0.62);
-  unifySwatch.addEventListener("input", () => {
-    const { h, ss, ll } = hexToHsl(unifySwatch.value);
-    fetch("/api/notebook/lsNotebooks", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }).then((r) => r.json()).then((data) => {
-      (data && data.data && data.data.notebooks || []).forEach((nb) => {
-        if (nb.closed) return;
-        cfg.overrides[nb.id] = { h: Math.round(h), s: Math.round(ss * 100), l: Math.round(ll * 100), a: 100 };
-      });
-      walkAllNow();
-      persistSoon();
-      pvBlocks.forEach(([b]) => {
-        b.style.borderLeft = "";
-        b.style.background = unifySwatch.value;
-      });
-    }).catch((e) => console.error("[cftree] \u7EDF\u4E00\u914D\u8272\u5931\u8D25:", e));
-  });
-  unifyRow.append(unifyName, unifySwatch);
-  gNb.append(unifyRow);
   const nbBox = document.createElement("div");
   nbBox.style.cssText = "display:flex;flex-direction:column;gap:4px;max-height:288px;overflow-y:auto";
   gNb.append(nbBox);
