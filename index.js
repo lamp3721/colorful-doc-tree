@@ -120,7 +120,7 @@ class ColorfulDocTree extends siyuan.Plugin {
             // —— 形态一：整块背景（跨行距缝 + 块首/末圆角 + 块间留缝）——
             'html[data-cftree="on"][data-cftreestyle="block"] .file-tree.sy__file .b3-list-item[data-nb-walked]::after {' +
             '  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;' +
-            "  background: oklch(var(--nb-l, " + this.cfg.light + "%) var(--nb-s, " + this.cfg.chroma + ") var(--nb-h, 231) / " + a + ");" +
+            "  background: oklch(var(--nb-l, " + this.cfg.light + "%) var(--nb-s, " + this.cfg.chroma + ") var(--nb-h, 231) / var(--nb-a, " + a + "));" +
             "}\n" +
             'html[data-cftree="on"][data-cftreestyle="block"] .file-tree.sy__file .b3-list-item[data-nb-walked]::after {' +
             "  inset-block: -1px;" +
@@ -261,6 +261,10 @@ class ColorfulDocTree extends siyuan.Plugin {
             else li.style.removeProperty("--nb-s");
             if (cur && typeof cur.l === "number") li.style.setProperty("--nb-l", String(Math.round(cur.l) + "%"));
             else li.style.removeProperty("--nb-l");
+            // v0.4.8：色板自定义色自带透明度（所见即所得，不吃全局浓度稀释）；
+            // 自动/快捷色缺席 → 回退全局 alpha
+            if (cur && typeof cur.a === "number") li.style.setProperty("--nb-a", String(Math.round(cur.a) / 100));
+            else li.style.removeProperty("--nb-a");
             this.setHue(li, hue);
             // 块边界：首=notebook 行；末=下一有效行是 notebook 行或走到尾
             const blockEnd = i + 1 >= valid.length || isNb(valid[i + 1]);
@@ -287,6 +291,9 @@ class ColorfulDocTree extends siyuan.Plugin {
     clearMarks() {
         document.querySelectorAll("[data-nb-walked]").forEach((li) => {
             li.style.removeProperty("--nb-h");
+            li.style.removeProperty("--nb-s");
+            li.style.removeProperty("--nb-l");
+            li.style.removeProperty("--nb-a");
             li.removeAttribute("data-nb-walked");
             li.removeAttribute("data-nb-block-start");
             li.removeAttribute("data-nb-block-end");
@@ -493,7 +500,9 @@ class ColorfulDocTree extends siyuan.Plugin {
                     });
                     swatch.addEventListener("input", () => {
                         const { h, ss, ll } = hexToHsl(swatch.value);
-                        applyOverride({ h: Math.round(h), s: Math.round(ss * 100), l: Math.round(ll * 100) });
+                        // a=1：自定义色所见即所得（v0.4.8 用户反馈"纯红变粉"——
+                        // 全局 14% 透明度稀释了色板色，违背"我就要这个色"的语义）
+                        applyOverride({ h: Math.round(h), s: Math.round(ss * 100), l: Math.round(ll * 100), a: 100 });
                         syncUI();
                     });
                     syncUI();
