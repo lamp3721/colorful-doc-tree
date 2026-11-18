@@ -8,5 +8,11 @@
   "chroma": "饱和度",
   "style": "渲染形态",
   "styleBlock": "整块背景",
-  "styleBar": "行首色条"
+  "styleBar": "行首色条",
+  "treeOn": "文档树染色",
+  "tagsOn": "标签面板染色",
+  "nbColors": "笔记本颜色",
+  "nbColorsDesc": "手动指定优先，未指定的自动分配",
+  "auto": "自动（哈希）",
+  "noNotebooks": "（未获取到笔记本）"
 }

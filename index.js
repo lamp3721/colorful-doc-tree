@@ -27,7 +27,10 @@ const CFG_KEY = "config.json";
 // v0.1.1 调优：避开暗底下浑浊的色相区（原 20 橙棕/325 品红偏闷），
 // 十档在明度感知上尽量均匀（黄绿区密集是感知特性）
 const HUES = [15, 45, 90, 140, 170, 200, 230, 262, 298, 335];
-const DEFAULTS = { enabled: true, alpha: 0.14, chroma: 0.12, light: 62, style: "block" };
+const DEFAULTS = { enabled: true, alpha: 0.14, chroma: 0.12, light: 62, style: "block", tree: true, tags: true };
+// overrides：笔记本 id → 色相数字（HUES 档位）——手动指定优先于哈希；
+// 哈希管"默认好看"，override 管"我就要这个色"
+const HUE_NAMES = { 15: "橙", 45: "黄", 90: "黄绿", 140: "绿", 170: "青绿", 200: "青", 230: "蓝", 262: "靛", 298: "紫", 335: "玫红" };
 // 预设：柔和（低饱和淡染）/ 鲜明（高饱和浓染）
 const PRESETS = { soft: { alpha: 0.12, chroma: 0.08, light: 64 }, vivid: { alpha: 0.24, chroma: 0.15, light: 60 } };
 
@@ -56,6 +59,7 @@ class ColorfulDocTree extends siyuan.Plugin {
             const saved = await this.loadData(CFG_KEY);
             if (saved && typeof saved === "object") Object.assign(this.cfg, saved);
         } catch (e) {}
+        if (typeof this.cfg.overrides !== "object" || this.cfg.overrides === null) this.cfg.overrides = {};
         this.applyStyle();
         if (this.cfg.enabled) this.startWatchers();
         this.addCommand({ command: "toggle", hotkey: "", callback: () => this.toggle() });
@@ -69,6 +73,7 @@ class ColorfulDocTree extends siyuan.Plugin {
         if (style) style.remove();
         delete document.documentElement.dataset.cftree;
         delete document.documentElement.dataset.cftreestyle;
+        delete document.documentElement.dataset.cftreetags;
         this.clearMarks();
     }
 
@@ -84,6 +89,7 @@ class ColorfulDocTree extends siyuan.Plugin {
             document.head.appendChild(el);
         }
         document.documentElement.dataset.cftree = this.cfg.enabled ? "on" : "off";
+        document.documentElement.dataset.cftreetags = this.cfg.tags === false ? "off" : "on";
         document.documentElement.dataset.cftreestyle = this.cfg.style === "bar" ? "bar" : "block";
         const a = this.cfg.alpha;
         // 与主题版同款公式：oklch 固定亮度饱和度只变色相；
@@ -94,7 +100,7 @@ class ColorfulDocTree extends siyuan.Plugin {
             "}\n" +
             // —— 形态一：整块背景（跨行距缝 + 块首/末圆角 + 块间留缝）——
             'html[data-cftree="on"][data-cftreestyle="block"] .file-tree.sy__file .b3-list-item[data-nb-walked]::after,' +
-            'html[data-cftree="on"][data-cftreestyle="block"] .file-tree.sy__tag .b3-list-item[data-nb-walked]::after {' +
+            'html[data-cftree="on"][data-cftreetags="on"][data-cftreestyle="block"] .file-tree.sy__tag .b3-list-item[data-nb-walked]::after {' +
             '  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;' +
             "  background: oklch(" + this.cfg.light + "% " + this.cfg.chroma + " var(--nb-h, 231) / " + a + ");" +
             "}\n" +
@@ -190,7 +196,7 @@ class ColorfulDocTree extends siyuan.Plugin {
 
     walk(panel) {
         if (panel.classList.contains("sy__file")) this.walkTree(panel);
-        else if (panel.classList.contains("sy__tag")) this.walkTags(panel);
+        else if (panel.classList.contains("sy__tag") && this.cfg.tags !== false) this.walkTags(panel);
     }
 
     walkTree(panel) {
@@ -206,9 +212,15 @@ class ColorfulDocTree extends siyuan.Plugin {
         for (let i = 0; i < valid.length; i++) {
             const li = valid[i];
             if (isNb(li)) {
-                let h = hashHue(li.getAttribute("data-tree-key") || "");
-                // 相邻防撞（v0.1.1）：哈希撞上前一个笔记本的色相 → 顺移一档
-                if (h === prevHue) h = HUES[(HUES.indexOf(h) + 1) % HUES.length];
+                // override 优先（v0.4.0）：手动指定的笔记本直接用；未指定走哈希+相邻防撞
+                const nbId = li.getAttribute("data-node-id") || li.getAttribute("data-tree-key") || "";
+                let h = this.cfg.overrides && Object.prototype.hasOwnProperty.call(this.cfg.overrides, nbId)
+                    ? this.cfg.overrides[nbId]
+                    : null;
+                if (h === null || h === undefined) {
+                    h = hashHue(li.getAttribute("data-tree-key") || "");
+                    if (h === prevHue) h = HUES[(HUES.indexOf(h) + 1) % HUES.length];
+                }
                 hue = h;
                 prevHue = h;
             }
@@ -321,6 +333,72 @@ class ColorfulDocTree extends siyuan.Plugin {
         });
         styleBox.append(styleSel);
         setting.addItem({ title: L.style || "渲染形态", actionElement: styleBox });
+        // 面板独立开关（v0.4.0）：文档树 / 标签面板
+        const mkToggle = (label, key, extra) => {
+            const box = document.createElement("div");
+            const swT = document.createElement("input");
+            swT.className = "b3-switch";
+            swT.type = "checkbox";
+            swT.checked = this.cfg[key] !== false;
+            swT.addEventListener("change", () => {
+                this.cfg[key] = swT.checked;
+                this.applyStyle();
+                if (key === "tags" && swT.checked) this.scan(true);
+                this.persistSoon();
+            });
+            box.append(swT);
+            setting.addItem({ title: label, description: extra || "", actionElement: box });
+            return box;
+        };
+        mkToggle(L.treeOn === undefined ? "文档树染色" : L.treeOn, "tree");
+        mkToggle(L.tagsOn === undefined ? "标签面板染色" : L.tagsOn, "tags");
+        // 笔记本颜色指定（v0.4.0）：override 表——内核 API 拉全部笔记本，
+        // 每本一个色相下拉（含"自动"）；改完即时重走查
+        const nbBox = document.createElement("div");
+        nbBox.style.cssText = "display:flex;flex-direction:column;gap:4px;width:280px";
+        fetch("/api/notebook/lsNotebooks", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
+            .then((r) => r.json())
+            .then((data) => {
+                const notebooks = (data && data.data && data.data.notebooks) || [];
+                if (!notebooks.length) {
+                    nbBox.textContent = L.noNotebooks || "（未获取到笔记本）";
+                    return;
+                }
+                notebooks.forEach((nb) => {
+                    if (nb.closed) return;
+                    const row = document.createElement("div");
+                    row.style.cssText = "display:flex;justify-content:space-between;align-items:center";
+                    const name = document.createElement("span");
+                    name.style.cssText = "font-size:12px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
+                    name.textContent = nb.name;
+                    const sel = document.createElement("select");
+                    sel.className = "b3-select";
+                    sel.style.width = "110px";
+                    const optAuto = document.createElement("option");
+                    optAuto.value = "";
+                    optAuto.textContent = L.auto || "自动（哈希）";
+                    sel.append(optAuto);
+                    HUES.forEach((h) => {
+                        const o = document.createElement("option");
+                        o.value = String(h);
+                        o.textContent = HUE_NAMES[h] + " " + h + "°";
+                        const cur = this.cfg.overrides && this.cfg.overrides[nb.id];
+                        if (cur === h) o.selected = true;
+                        sel.append(o);
+                    });
+                    if (!(this.cfg.overrides && this.cfg.overrides[nb.id])) optAuto.selected = true;
+                    sel.addEventListener("change", () => {
+                        if (sel.value === "") delete this.cfg.overrides[nb.id];
+                        else this.cfg.overrides[nb.id] = parseInt(sel.value, 10);
+                        this.persistSoon();
+                        this.panelObservers.forEach((po) => this.walkWindow(po.panel));
+                    });
+                    row.append(name, sel);
+                    nbBox.append(row);
+                });
+            })
+            .catch(() => { nbBox.textContent = L.noNotebooks || "（未获取到笔记本）"; });
+        setting.addItem({ title: L.nbColors || "笔记本颜色", description: L.nbColorsDesc || "手动指定优先，未指定的自动分配", actionElement: nbBox });
         const swBox = document.createElement("div");
         const sw = document.createElement("input");
         sw.className = "b3-switch";
