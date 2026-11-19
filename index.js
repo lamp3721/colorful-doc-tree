@@ -699,6 +699,7 @@ var ColorfulDocTree = class extends siyuan.Plugin {
     bindHost(this);
     await loadCfg();
     applyStyle();
+    if (cfg.enabled) startWatchers();
     const L = this.i18n || {};
     this.addCommand({ langKey: "toggle", langText: L.toggle || "\u5207\u6362\u5F69\u8272\u80CC\u666F", hotkey: "", callback: () => this.toggle() });
     this.addCommand({ langKey: "settings", langText: L.settings || "\u5F69\u8272\u6587\u6863\u6811\u8BBE\u7F6E", hotkey: "", callback: () => this.openSettings() });
