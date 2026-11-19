@@ -456,7 +456,10 @@ export function buildSetting(siyuan, i18n) {
         })
         .catch(() => { nbBox.textContent = L.noNotebooks || "（未获取到笔记本）"; });
     // 官方 Setting：单 row 项挂全宽容器（fn__block 不受 fn__size200 定宽挤压）
-    const setting = new siyuan.Setting({ width: "560px", height: "auto" });
+    // 高度 76vh（v0.7.9 修 #2 底部截断）：auto 跟随内容超屏时容器被裁
+// （b3-dialog__container 无视口上限，超出视口部分不可达），官方默认即 80vh
+// ——面板三组全展开超屏时内容区自滚，始终完整可达
+const setting = new siyuan.Setting({ width: "560px", height: "76vh" });
     setting.addItem({ title: "", direction: "row", actionElement: container });
     return setting;
 }

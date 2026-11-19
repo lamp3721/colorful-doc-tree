@@ -688,7 +688,7 @@ function buildSetting(siyuan2, i18n) {
   }).catch(() => {
     nbBox.textContent = L.noNotebooks || "\uFF08\u672A\u83B7\u53D6\u5230\u7B14\u8BB0\u672C\uFF09";
   });
-  const setting = new siyuan2.Setting({ width: "560px", height: "auto" });
+  const setting = new siyuan2.Setting({ width: "560px", height: "76vh" });
   setting.addItem({ title: "", direction: "row", actionElement: container });
   return setting;
 }
