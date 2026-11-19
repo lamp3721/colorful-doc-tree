@@ -88,7 +88,9 @@ function setAttr(li, name, on) {
 }
 
 function walk(panel) {
-    if (panel.classList.contains("sy__file")) walkTree(panel);
+    // 桌面面板带 sy__file；移动端面板无此标记但同结构（DocTreeController
+    // 同源渲染）——只要是 .file-tree 就走文档树走查
+    if (panel.classList.contains("file-tree")) walkTree(panel);
 }
 
 function walkWindow(panel) {
@@ -111,26 +113,39 @@ function attach(panel) {
 function scan(force) {
     if (!force && Date.now() - lastScan < 2000) return;
     lastScan = Date.now();
-    const panels = document.querySelectorAll(".file-tree.sy__file");
+    // 桌面：.file-tree.sy__file（dock 面板）；移动端：同一渲染器，面板在
+    // [data-type="sidebar-file"]（首次开边栏才挂载，initFramework.ts:59）
+    const panels = document.querySelectorAll(".file-tree.sy__file, [data-type=\"sidebar-file\"] .file-tree");
     panels.forEach((p) => attach(p));
 }
 
 export function startWatchers() {
     if (onMouseup) return;
+    // 移动端没有 mouseup 主力（触摸），touchend 同样作为发现时机
     onMouseup = () => scan();
     document.addEventListener("mouseup", onMouseup);
+    document.addEventListener("touchend", onMouseup, { passive: true });
     if (!dockObserver) {
         dockObserver = new MutationObserver(() => scan());
+        // 桌面：dock 容器；移动端：侧栏面板容器（sidebar-file 首开挂载）
         ["dockLeft", "dockRight"].forEach((id) => {
             const dock = document.getElementById(id);
-            if (dock) dockObserver.observe(dock, { childList: true });
+            if (dock) dockObserver.observe(dock, { childList: true, subtree: true });
         });
+        // 移动端兜底：body childList（侧栏面板挂载/激活时触发；观察很轻——
+        // 只记 childList 不记属性，且发现逻辑有 2s 节流）
+        const mobileSidebar = document.querySelector(".side-panel") || document.body;
+        dockObserver.observe(mobileSidebar, { childList: true, subtree: false });
     }
     scan(true);
 }
 
 export function stopWatchers() {
-    if (onMouseup) { document.removeEventListener("mouseup", onMouseup); onMouseup = null; }
+    if (onMouseup) {
+        document.removeEventListener("mouseup", onMouseup);
+        document.removeEventListener("touchend", onMouseup);
+        onMouseup = null;
+    }
     if (dockObserver) { dockObserver.disconnect(); dockObserver = null; }
     panelObservers.forEach((po) => po.obs.disconnect());
     panelObservers = [];

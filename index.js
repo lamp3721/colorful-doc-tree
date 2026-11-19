@@ -166,7 +166,7 @@ function setAttr(li, name, on) {
   else if (!on && li.hasAttribute(name)) li.removeAttribute(name);
 }
 function walk(panel) {
-  if (panel.classList.contains("sy__file")) walkTree(panel);
+  if (panel.classList.contains("file-tree")) walkTree(panel);
 }
 function walkWindow(panel) {
   const po = panelObservers.find((o) => o.panel === panel);
@@ -193,25 +193,29 @@ function attach(panel) {
 function scan(force) {
   if (!force && Date.now() - lastScan < 2e3) return;
   lastScan = Date.now();
-  const panels = document.querySelectorAll(".file-tree.sy__file");
+  const panels = document.querySelectorAll('.file-tree.sy__file, [data-type="sidebar-file"] .file-tree');
   panels.forEach((p) => attach(p));
 }
 function startWatchers() {
   if (onMouseup) return;
   onMouseup = () => scan();
   document.addEventListener("mouseup", onMouseup);
+  document.addEventListener("touchend", onMouseup, { passive: true });
   if (!dockObserver) {
     dockObserver = new MutationObserver(() => scan());
     ["dockLeft", "dockRight"].forEach((id) => {
       const dock = document.getElementById(id);
-      if (dock) dockObserver.observe(dock, { childList: true });
+      if (dock) dockObserver.observe(dock, { childList: true, subtree: true });
     });
+    const mobileSidebar = document.querySelector(".side-panel") || document.body;
+    dockObserver.observe(mobileSidebar, { childList: true, subtree: false });
   }
   scan(true);
 }
 function stopWatchers() {
   if (onMouseup) {
     document.removeEventListener("mouseup", onMouseup);
+    document.removeEventListener("touchend", onMouseup);
     onMouseup = null;
   }
   if (dockObserver) {
