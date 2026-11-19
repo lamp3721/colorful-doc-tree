@@ -1,5 +1,7 @@
 /**
  * 组件：样式渲染 —— CSS 公式生成 + <html> dataset 状态 + <style> 注入
+ * v0.7.3：选择器去掉 .file-tree/.sy__file 作用域——App 版 DOM 无这些类
+ * （JS 侧 v0.7.2 已修同坑），[data-nb-walked] 行标记本身就是唯一可靠作用域
  * 两种形态（block 整块背景 / bar 行首色条），四变量公式（h/s/l/a 各自
  * 可被笔记本 override，缺席回退全局滑条）。
  * 状态门控：html[data-cftree] 开关；样式元素 id 固定，applyStyle 幂等重建。
@@ -20,35 +22,35 @@ function applyStyle() {
     const a = cfg.alpha;
     // —— 形态一：整块背景（跨行距缝 + 块首/末圆角 + 块间留缝）——
     el.textContent =
-        'html[data-cftree="on"][data-cftreestyle="block"] .file-tree.sy__file .b3-list-item[data-nb-walked] {' +
+        'html[data-cftree="on"][data-cftreestyle="block"] [data-nb-walked] {' +
         '  position: relative; isolation: isolate;' +
         "}\n" +
-        'html[data-cftree="on"][data-cftreestyle="block"] .file-tree.sy__file .b3-list-item[data-nb-walked]::after {' +
+        'html[data-cftree="on"][data-cftreestyle="block"] [data-nb-walked]::after {' +
         '  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;' +
         "  background: oklch(var(--nb-l, " + cfg.light + "%) var(--nb-s, " + cfg.chroma + ") var(--nb-h, 231) / var(--nb-a, " + a + "));" +
         "}\n" +
-        'html[data-cftree="on"][data-cftreestyle="block"] .file-tree.sy__file .b3-list-item[data-nb-walked]::after {' +
+        'html[data-cftree="on"][data-cftreestyle="block"] [data-nb-walked]::after {' +
         "  inset-block: -1px;" +
         "}\n" +
-        'html[data-cftree="on"][data-cftreestyle="block"] .file-tree.sy__file .b3-list-item[data-nb-block-start]::after {' +
+        'html[data-cftree="on"][data-cftreestyle="block"] [data-nb-block-start]::after {' +
         "  top: 3px; border-top-left-radius: 6px; border-top-right-radius: 6px;" +
         "}\n" +
-        'html[data-cftree="on"][data-cftreestyle="block"] .file-tree.sy__file .b3-list-item[data-nb-block-end]::after {' +
+        'html[data-cftree="on"][data-cftreestyle="block"] [data-nb-block-end]::after {' +
         "  bottom: 3px; border-bottom-left-radius: 6px; border-bottom-right-radius: 6px;" +
         "}\n" +
         // —— 形态二：行首色条 ——
-        'html[data-cftree="on"][data-cftreestyle="bar"] .file-tree .b3-list-item[data-nb-walked] {' +
+        'html[data-cftree="on"][data-cftreestyle="bar"] [data-nb-walked] {' +
         "  position: relative; isolation: isolate;" +
         "}\n" +
-        'html[data-cftree="on"][data-cftreestyle="bar"] .file-tree .b3-list-item[data-nb-walked]::after {' +
+        'html[data-cftree="on"][data-cftreestyle="bar"] [data-nb-walked]::after {' +
         '  content: ""; position: absolute; z-index: -1; pointer-events: none;' +
         "  width: 3px; inset-inline: 0 auto; inset-block: -1px;" +
         "  background: oklch(var(--nb-l, " + cfg.light + "%) var(--nb-s, " + cfg.chroma + ") var(--nb-h, 231));" +
         "}\n" +
-        'html[data-cftree="on"][data-cftreestyle="bar"] .file-tree .b3-list-item[data-nb-block-start]::after {' +
+        'html[data-cftree="on"][data-cftreestyle="bar"] [data-nb-block-start]::after {' +
         "  top: 3px; border-top-left-radius: 1.5px; border-top-right-radius: 1.5px;" +
         "}\n" +
-        'html[data-cftree="on"][data-cftreestyle="bar"] .file-tree .b3-list-item[data-nb-block-end]::after {' +
+        'html[data-cftree="on"][data-cftreestyle="bar"] [data-nb-block-end]::after {' +
         "  bottom: 3px; border-bottom-left-radius: 1.5px; border-bottom-right-radius: 1.5px;" +
         "}\n";
 }
