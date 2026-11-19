@@ -300,7 +300,7 @@ export function buildSetting(siyuan, i18n) {
                 HUES.forEach((h) => {
                     const o = document.createElement("option");
                     o.value = String(h);
-                    o.textContent = HUE_NAMES[h];
+                    o.textContent = HUE_NAMES[h] || (h + "°");
                     quick.append(o);
                 });
                     // "自定义…"排最末（v0.6.4 修误触：曾排第二紧挨"自动"，
