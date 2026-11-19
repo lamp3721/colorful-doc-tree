@@ -68,7 +68,7 @@ function toggle() {
 }
 
 // src/shared/color.js
-var HUES = [12, 30, 48, 66, 84, 102, 120, 138, 156, 174, 192, 210, 228, 246, 264, 282, 300, 318, 336, 354];
+var HUES = [12, 30, 48, 66, 84, 102, 120, 138, 156, 174, 192, 210, 228, 246, 264, 281, 301, 319, 336, 354];
 function hashHue(key) {
   let h = 5381;
   for (let i = 0; i < key.length; i++) h = (h << 5) + h + key.charCodeAt(i) >>> 0;
@@ -136,7 +136,7 @@ function walkTree(panel) {
         const seedKey = (li.getAttribute("data-tree-key") || "") + (cfg.shuffleSeed ? "#" + cfg.shuffleSeed : "");
         let h = hashHue(seedKey);
         if (typeof cfg.__baseHue === "number") {
-          h = (cfg.__baseHue + (HUES.indexOf(h) - HUES.indexOf(HUES.reduce((a, b) => Math.abs(b - cfg.__baseHue) < Math.abs(a - cfg.__baseHue) ? b : a, HUES[0])) + 5) * 30 + 36e3) % 360;
+          h = (cfg.__baseHue + (HUES.indexOf(h) - HUES.indexOf(HUES.reduce((a, b) => Math.abs(b - cfg.__baseHue) < Math.abs(a - cfg.__baseHue) ? b : a, HUES[0])) + 5) * (360 / HUES.length) + 36e3) % 360;
         }
         cur = { h };
         if (cur.h === prevHue) cur.h = HUES[(HUES.indexOf(cur.h) + 1) % HUES.length];

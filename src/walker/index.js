@@ -57,7 +57,7 @@ function walkTree(panel) {
                 const seedKey = (li.getAttribute("data-tree-key") || "") + (cfg.shuffleSeed ? "#" + cfg.shuffleSeed : "");
                 let h = hashHue(seedKey);
                 if (typeof cfg.__baseHue === "number") {
-                    h = (cfg.__baseHue + (HUES.indexOf(h) - HUES.indexOf(HUES.reduce((a, b) => Math.abs(b - cfg.__baseHue) < Math.abs(a - cfg.__baseHue) ? b : a, HUES[0])) + 5) * 30 + 36000) % 360;
+                    h = (cfg.__baseHue + (HUES.indexOf(h) - HUES.indexOf(HUES.reduce((a, b) => Math.abs(b - cfg.__baseHue) < Math.abs(a - cfg.__baseHue) ? b : a, HUES[0])) + 5) * (360 / HUES.length) + 36000) % 360;
                 }
                 cur = { h: h };
                 if (cur.h === prevHue) cur.h = HUES[(HUES.indexOf(cur.h) + 1) % HUES.length];
