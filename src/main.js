@@ -27,10 +27,12 @@ class ColorfulDocTree extends siyuan.Plugin {
         bindHost(this);
         await loadCfg();
         applyStyle();
-        // 走查启动不在此处（见 onLayoutReady）——onload 发生在启动早期
-        // （loadPlugins 在 storage/language/interface 之前，index.ts:359），
-        // 此时文档树面板可能尚未建好，scan 扫空只能靠 mouseup 节流追补
-        // ——"刷新界面颜色迟到 5 秒"的根因
+
+        // 双保险首扫（v0.7.1）：正常路径在 onLayoutReady（桌面启动流程调），
+        // 但移动端 afterLayoutReady 挂在"我的"菜单首开（mobile/menu/index.ts:124）
+        // ——用户不点菜单走查就永远不启动。onload 直接扫一次：面板已在（移动端
+        // 面板常驻 index.tpl:41）立即染上；面板未建靠 watchers 追补。幂等无代价
+        if (cfg.enabled) startWatchers();
         // 命令注册：ICommand 字段是 langKey/langText（command 字段无人识别
         // → ID 落 undefined → 撞 ID → onload 崩，v0.4.17 真机实证，勿回退）
         const L = this.i18n || {};

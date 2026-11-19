@@ -53,7 +53,7 @@ function applyStyle() {
   document.documentElement.dataset.cftree = cfg.enabled ? "on" : "off";
   document.documentElement.dataset.cftreestyle = cfg.style === "bar" ? "bar" : "block";
   const a = cfg.alpha;
-  el.textContent = 'html[data-cftree="on"][data-cftreestyle="block"] .file-tree.sy__file .b3-list-item[data-nb-walked] {  position: relative; isolation: isolate;}\nhtml[data-cftree="on"][data-cftreestyle="block"] .file-tree.sy__file .b3-list-item[data-nb-walked]::after {  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;  background: oklch(var(--nb-l, ' + cfg.light + "%) var(--nb-s, " + cfg.chroma + ") var(--nb-h, 231) / var(--nb-a, " + a + '));}\nhtml[data-cftree="on"][data-cftreestyle="block"] .file-tree.sy__file .b3-list-item[data-nb-walked]::after {  inset-block: -1px;}\nhtml[data-cftree="on"][data-cftreestyle="block"] .file-tree.sy__file .b3-list-item[data-nb-block-start]::after {  top: 3px; border-top-left-radius: 6px; border-top-right-radius: 6px;}\nhtml[data-cftree="on"][data-cftreestyle="block"] .file-tree.sy__file .b3-list-item[data-nb-block-end]::after {  bottom: 3px; border-bottom-left-radius: 6px; border-bottom-right-radius: 6px;}\nhtml[data-cftree="on"][data-cftreestyle="bar"] .file-tree .b3-list-item[data-nb-walked] {  position: relative; isolation: isolate;}\nhtml[data-cftree="on"][data-cftreestyle="bar"] .file-tree .b3-list-item[data-nb-walked]::after {  content: ""; position: absolute; z-index: -1; pointer-events: none;  width: 3px; inset-inline: 0 auto; inset-block: -1px;  background: oklch(var(--nb-l, ' + cfg.light + "%) var(--nb-s, " + cfg.chroma + ') var(--nb-h, 231));}\nhtml[data-cftree="on"][data-cftreestyle="bar"] .file-tree .b3-list-item[data-nb-block-start]::after {  top: 3px; border-top-left-radius: 1.5px; border-top-right-radius: 1.5px;}\nhtml[data-cftree="on"][data-cftreestyle="bar"] .file-tree .b3-list-item[data-nb-block-end]::after {  bottom: 3px; border-bottom-left-radius: 1.5px; border-bottom-right-radius: 1.5px;}\n';
+  el.textContent = 'html[data-cftree="on"][data-cftreestyle="block"] [data-nb-walked] {  position: relative; isolation: isolate;}\nhtml[data-cftree="on"][data-cftreestyle="block"] [data-nb-walked]::after {  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;  background: oklch(var(--nb-l, ' + cfg.light + "%) var(--nb-s, " + cfg.chroma + ") var(--nb-h, 231) / var(--nb-a, " + a + '));}\nhtml[data-cftree="on"][data-cftreestyle="block"] [data-nb-walked]::after {  inset-block: -1px;}\nhtml[data-cftree="on"][data-cftreestyle="block"] [data-nb-block-start]::after {  top: 3px; border-top-left-radius: 6px; border-top-right-radius: 6px;}\nhtml[data-cftree="on"][data-cftreestyle="block"] [data-nb-block-end]::after {  bottom: 3px; border-bottom-left-radius: 6px; border-bottom-right-radius: 6px;}\nhtml[data-cftree="on"][data-cftreestyle="bar"] [data-nb-walked] {  position: relative; isolation: isolate;}\nhtml[data-cftree="on"][data-cftreestyle="bar"] [data-nb-walked]::after {  content: ""; position: absolute; z-index: -1; pointer-events: none;  width: 3px; inset-inline: 0 auto; inset-block: -1px;  background: oklch(var(--nb-l, ' + cfg.light + "%) var(--nb-s, " + cfg.chroma + ') var(--nb-h, 231));}\nhtml[data-cftree="on"][data-cftreestyle="bar"] [data-nb-block-start]::after {  top: 3px; border-top-left-radius: 1.5px; border-top-right-radius: 1.5px;}\nhtml[data-cftree="on"][data-cftreestyle="bar"] [data-nb-block-end]::after {  bottom: 3px; border-bottom-left-radius: 1.5px; border-bottom-right-radius: 1.5px;}\n';
 }
 function removeStyle() {
   const el = document.getElementById(STYLE_ID);
@@ -68,8 +68,7 @@ function toggle() {
 }
 
 // src/shared/color.js
-var HUES = [12, 30, 48, 66, 84, 102, 120, 138, 156, 174, 192, 210, 228, 246, 264, 282, 300, 318, 336, 354];
-var HUE_NAMES = { 12: "\u6A59", 48: "\u9EC4", 84: "\u9EC4\u7EFF", 120: "\u7EFF", 156: "\u9752\u7EFF", 192: "\u9752", 228: "\u84DD", 264: "\u975B", 300: "\u7D2B", 336: "\u73AB\u7EA2" };
+var HUES = [12, 30, 48, 66, 84, 102, 120, 138, 156, 174, 192, 210, 228, 246, 264, 281, 301, 319, 336, 354];
 function hashHue(key) {
   let h = 5381;
   for (let i = 0; i < key.length; i++) h = (h << 5) + h + key.charCodeAt(i) >>> 0;
@@ -137,7 +136,7 @@ function walkTree(panel) {
         const seedKey = (li.getAttribute("data-tree-key") || "") + (cfg.shuffleSeed ? "#" + cfg.shuffleSeed : "");
         let h = hashHue(seedKey);
         if (typeof cfg.__baseHue === "number") {
-          h = (cfg.__baseHue + (HUES.indexOf(h) - HUES.indexOf(HUES.reduce((a, b) => Math.abs(b - cfg.__baseHue) < Math.abs(a - cfg.__baseHue) ? b : a, HUES[0])) + 5) * 30 + 36e3) % 360;
+          h = (cfg.__baseHue + (HUES.indexOf(h) - HUES.indexOf(HUES.reduce((a, b) => Math.abs(b - cfg.__baseHue) < Math.abs(a - cfg.__baseHue) ? b : a, HUES[0])) + 5) * (360 / HUES.length) + 36e3) % 360;
         }
         cur = { h };
         if (cur.h === prevHue) cur.h = HUES[(HUES.indexOf(cur.h) + 1) % HUES.length];
@@ -166,7 +165,7 @@ function setAttr(li, name, on) {
   else if (!on && li.hasAttribute(name)) li.removeAttribute(name);
 }
 function walk(panel) {
-  if (panel.classList.contains("sy__file")) walkTree(panel);
+  if (panel.querySelector("li[aria-level]")) walkTree(panel);
 }
 function walkWindow(panel) {
   const po = panelObservers.find((o) => o.panel === panel);
@@ -193,25 +192,29 @@ function attach(panel) {
 function scan(force) {
   if (!force && Date.now() - lastScan < 2e3) return;
   lastScan = Date.now();
-  const panels = document.querySelectorAll(".file-tree.sy__file");
+  const panels = document.querySelectorAll('.file-tree.sy__file, [data-type="sidebar-file"], [data-type="sidebar-file"] .file-tree');
   panels.forEach((p) => attach(p));
 }
 function startWatchers() {
   if (onMouseup) return;
   onMouseup = () => scan();
   document.addEventListener("mouseup", onMouseup);
+  document.addEventListener("touchend", onMouseup, { passive: true });
   if (!dockObserver) {
     dockObserver = new MutationObserver(() => scan());
     ["dockLeft", "dockRight"].forEach((id) => {
       const dock = document.getElementById(id);
-      if (dock) dockObserver.observe(dock, { childList: true });
+      if (dock) dockObserver.observe(dock, { childList: true, subtree: true });
     });
+    const mobileSidebar = document.querySelector(".side-panel") || document.body;
+    dockObserver.observe(mobileSidebar, { childList: true, subtree: false });
   }
   scan(true);
 }
 function stopWatchers() {
   if (onMouseup) {
     document.removeEventListener("mouseup", onMouseup);
+    document.removeEventListener("touchend", onMouseup);
     onMouseup = null;
   }
   if (dockObserver) {
@@ -497,17 +500,16 @@ function buildSetting(siyuan2, i18n) {
       optAuto.value = "";
       optAuto.textContent = L.auto || "\u81EA\u52A8";
       quick.append(optAuto);
-      HUES.forEach((h) => {
-        const o = document.createElement("option");
-        o.value = String(h);
-        o.textContent = HUE_NAMES[h] || h + "\xB0";
-        quick.append(o);
-      });
       const optCustom = document.createElement("option");
       optCustom.value = "__custom__";
       optCustom.textContent = L.customDots || "\u81EA\u5B9A\u4E49\u2026";
       quick.append(optCustom);
       const cur = cfg.overrides && cfg.overrides[nb.id];
+      if (cur && typeof cur === "object" && cur.h !== void 0 && cur.s === void 0) {
+        cur.s = Math.round(cfg.chroma * 100);
+        cur.l = cfg.light;
+        if (typeof cur.a !== "number") cur.a = Math.round(cfg.chroma * 100);
+      }
       const hslOf = (o) => typeof o === "number" ? { h: o } : o || null;
       const applyOverride = (val) => {
         if (val === null) delete cfg.overrides[nb.id];
@@ -518,8 +520,7 @@ function buildSetting(siyuan2, i18n) {
       const syncUI = () => {
         const c = hslOf(cfg.overrides && cfg.overrides[nb.id]);
         const isCustom = !!(c && typeof c === "object" && c.s !== void 0);
-        const isQuick = !!(c && typeof c === "object" && c.h !== void 0 && c.s === void 0);
-        quick.value = isCustom ? "__custom__" : isQuick ? String(c.h) : "";
+        quick.value = isCustom ? "__custom__" : "";
         const hh = c ? c.h : hashHue(nb.id);
         const ss = c && c.s !== void 0 ? c.s : Math.round(cfg.chroma * 100);
         const ll = c && c.l !== void 0 ? c.l : cfg.light;
@@ -656,10 +657,8 @@ function buildSetting(siyuan2, i18n) {
             const h0 = base ? base.h : hashHue(nb.id);
             applyOverride({ h: h0, s: Math.round(cfg.chroma * 100), l: cfg.light, a: 100 });
           }
-        } else if (quick.value === "") {
-          applyOverride(null);
         } else {
-          applyOverride({ h: parseInt(quick.value, 10) });
+          applyOverride(null);
         }
         syncUI();
         syncCustomPanel();
@@ -695,6 +694,7 @@ var ColorfulDocTree = class extends siyuan.Plugin {
     bindHost(this);
     await loadCfg();
     applyStyle();
+    if (cfg.enabled) startWatchers();
     const L = this.i18n || {};
     this.addCommand({ langKey: "toggle", langText: L.toggle || "\u5207\u6362\u5F69\u8272\u80CC\u666F", hotkey: "", callback: () => this.toggle() });
     this.addCommand({ langKey: "settings", langText: L.settings || "\u5F69\u8272\u6587\u6863\u6811\u8BBE\u7F6E", hotkey: "", callback: () => this.openSettings() });

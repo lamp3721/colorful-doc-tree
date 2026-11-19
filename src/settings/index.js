@@ -5,7 +5,7 @@
  */
 import { cfg, persistSoon } from '../shared/config.js';
 import { applyStyle } from '../render/index.js';
-import { HUES, HUE_NAMES, hashHue, hslToHex, hexToHsl } from '../shared/color.js';
+import { HUES, hashHue, hslToHex, hexToHsl } from '../shared/color.js';
 import { walkAllNow } from '../walker/index.js';
 
 // 预设（v0.4.9 引入；v0.5.1 拆分时曾丢失致预设失效，此处归位——
@@ -297,19 +297,20 @@ export function buildSetting(siyuan, i18n) {
                 optAuto.value = "";
                 optAuto.textContent = L.auto || "自动";
                 quick.append(optAuto);
-                HUES.forEach((h) => {
-                    const o = document.createElement("option");
-                    o.value = String(h);
-                    o.textContent = HUE_NAMES[h] || (h + "°");
-                    quick.append(o);
-                });
-                    // "自定义…"排最末（v0.6.4 修误触：曾排第二紧挨"自动"，
-                    // 选十档色时易误选 → 全套 override 落盘 → "全是自定义"）
-                    const optCustom = document.createElement("option");
-                    optCustom.value = "__custom__";
-                    optCustom.textContent = L.customDots || "自定义…";
-                    quick.append(optCustom);
+                // v0.7.5：快捷色档位撤下（用户定夺：选了颜色没啥用）——自动内部
+                // 本就是 20 档轮转，手动指定走"自定义…"色板；下拉只剩两态
+                const optCustom = document.createElement("option");
+                optCustom.value = "__custom__";
+                optCustom.textContent = L.customDots || "自定义…";
+                quick.append(optCustom);
                 const cur = cfg.overrides && cfg.overrides[nb.id];
+                // 旧版快捷色 override（{h} 裸色相）迁移为自定义全套——沿用
+                // 当前全局质感，视觉近似不变，不再出现"下拉两态都对不上"的孤儿态
+                if (cur && typeof cur === "object" && cur.h !== undefined && cur.s === undefined) {
+                    cur.s = Math.round(cfg.chroma * 100);
+                    cur.l = cfg.light;
+                    if (typeof cur.a !== "number") cur.a = Math.round(cfg.chroma * 100);
+                }
                 const hslOf = (o) => typeof o === "number" ? { h: o } : (o || null);
                 const applyOverride = (val) => {
                     if (val === null) delete cfg.overrides[nb.id];
@@ -320,9 +321,8 @@ export function buildSetting(siyuan, i18n) {
                 const syncUI = () => {
                     const c = hslOf(cfg.overrides && cfg.overrides[nb.id]);
                     const isCustom = !!(c && typeof c === "object" && c.s !== undefined);
-                    // 下拉永远显示（v0.5.1）：四态一表——自动/十档色/自定义…
-                    const isQuick = !!(c && typeof c === "object" && c.h !== undefined && c.s === undefined);
-                    quick.value = isCustom ? "__custom__" : (isQuick ? String(c.h) : "");
+                    // v0.7.5 下拉两态：自动 / 自定义…（快捷档已撤）
+                    quick.value = isCustom ? "__custom__" : "";
                     // swatch 初值：override 的 HSL → hex；无 override 显示全局公式色
                     const hh = c ? c.h : hashHue(nb.id);
                     const ss = c && c.s !== undefined ? c.s : Math.round(cfg.chroma * 100);
@@ -435,10 +435,8 @@ export function buildSetting(siyuan, i18n) {
                             const h0 = base ? base.h : hashHue(nb.id);
                             applyOverride({ h: h0, s: Math.round(cfg.chroma * 100), l: cfg.light, a: 100 });
                         }
-                    } else if (quick.value === "") {
-                        applyOverride(null);            // 自动：清 override
                     } else {
-                        applyOverride({ h: parseInt(quick.value, 10) });   // 快捷色：纯色相
+                        applyOverride(null);            // 自动：清 override（快捷档已撤，无第三态）
                     }
                     syncUI();
                     syncCustomPanel();

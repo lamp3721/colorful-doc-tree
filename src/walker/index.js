@@ -57,7 +57,7 @@ function walkTree(panel) {
                 const seedKey = (li.getAttribute("data-tree-key") || "") + (cfg.shuffleSeed ? "#" + cfg.shuffleSeed : "");
                 let h = hashHue(seedKey);
                 if (typeof cfg.__baseHue === "number") {
-                    h = (cfg.__baseHue + (HUES.indexOf(h) - HUES.indexOf(HUES.reduce((a, b) => Math.abs(b - cfg.__baseHue) < Math.abs(a - cfg.__baseHue) ? b : a, HUES[0])) + 5) * 30 + 36000) % 360;
+                    h = (cfg.__baseHue + (HUES.indexOf(h) - HUES.indexOf(HUES.reduce((a, b) => Math.abs(b - cfg.__baseHue) < Math.abs(a - cfg.__baseHue) ? b : a, HUES[0])) + 5) * (360 / HUES.length) + 36000) % 360;
                 }
                 cur = { h: h };
                 if (cur.h === prevHue) cur.h = HUES[(HUES.indexOf(cur.h) + 1) % HUES.length];
@@ -88,7 +88,9 @@ function setAttr(li, name, on) {
 }
 
 function walk(panel) {
-    if (panel.classList.contains("sy__file")) walkTree(panel);
+    // 走查资格按行自证：面板里有带 aria-level 的行就是文档树（桌面
+    // .sy__file / Web .file-tree / App 无类名容器统一覆盖）
+    if (panel.querySelector("li[aria-level]")) walkTree(panel);
 }
 
 function walkWindow(panel) {
@@ -111,26 +113,40 @@ function attach(panel) {
 function scan(force) {
     if (!force && Date.now() - lastScan < 2000) return;
     lastScan = Date.now();
-    const panels = document.querySelectorAll(".file-tree.sy__file");
+    // 桌面：.file-tree.sy__file（dock 面板）；移动端 Web：sidebar-file 内的
+    // .file-tree；手机 App：DOM 无 .file-tree 类（v0.7.2 角标实测 ft=0 sbf=1），
+    // 直接观察 sidebar-file 容器本身——行判定按 aria 标记自证不依赖容器类名
+    const panels = document.querySelectorAll(".file-tree.sy__file, [data-type=\"sidebar-file\"], [data-type=\"sidebar-file\"] .file-tree");
     panels.forEach((p) => attach(p));
 }
 
 export function startWatchers() {
     if (onMouseup) return;
+    // 移动端没有 mouseup 主力（触摸），touchend 同样作为发现时机
     onMouseup = () => scan();
     document.addEventListener("mouseup", onMouseup);
+    document.addEventListener("touchend", onMouseup, { passive: true });
     if (!dockObserver) {
         dockObserver = new MutationObserver(() => scan());
+        // 桌面：dock 容器；移动端：侧栏面板容器（sidebar-file 首开挂载）
         ["dockLeft", "dockRight"].forEach((id) => {
             const dock = document.getElementById(id);
-            if (dock) dockObserver.observe(dock, { childList: true });
+            if (dock) dockObserver.observe(dock, { childList: true, subtree: true });
         });
+        // 移动端兜底：body childList（侧栏面板挂载/激活时触发；观察很轻——
+        // 只记 childList 不记属性，且发现逻辑有 2s 节流）
+        const mobileSidebar = document.querySelector(".side-panel") || document.body;
+        dockObserver.observe(mobileSidebar, { childList: true, subtree: false });
     }
     scan(true);
 }
 
 export function stopWatchers() {
-    if (onMouseup) { document.removeEventListener("mouseup", onMouseup); onMouseup = null; }
+    if (onMouseup) {
+        document.removeEventListener("mouseup", onMouseup);
+        document.removeEventListener("touchend", onMouseup);
+        onMouseup = null;
+    }
     if (dockObserver) { dockObserver.disconnect(); dockObserver = null; }
     panelObservers.forEach((po) => po.obs.disconnect());
     panelObservers = [];

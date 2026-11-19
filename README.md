@@ -1,28 +1,31 @@
 # Colorful Doc Tree（彩色文档树）
 
-![效果图](preview.png)
+![Preview](preview.png)
 
-## 这是什么
+Tint the SiYuan **doc tree** per notebook — one color per notebook, works out of the box.
 
-给思源的**文档树**按笔记本一色染底：同一个笔记本的所有行连成一整块连续色区（块间留缝），不同笔记本不同色；也可切换为行首色条形态。文字与图标一律不动，专注于文档树本身。
+Supports **desktop, browser, and mobile App**.
 
-装上即生效，无需配置。
+## What it does
 
-## 使用
+- **Block background**: all rows of a notebook form one continuous tinted block (with gaps between notebooks), each notebook gets its own color automatically
+- **Leading color bar**: an alternative minimal style — a 3px colored bar per notebook, background stays clean
+- Text and icons are never touched, only the background
 
-- 默认开启。设置入口：**`设置 → 集市 → 已下载 → 插件 → 彩色文档树 → 齿轮图标`**
-  - 启用开关、染色浓度 / 饱和度 / 明度三个滑条（拖动实时预览）
-  - 预设：**柔和** / **鲜明** 一键切换
-- 命令面板（`Ctrl+P` → 输入 colorful）：
-  - **切换彩色背景**
-  - **彩色文档树设置**
+## Usage
 
-## 边界
+Works out of the box. When you want to tweak:
 
-- 只染文档树与标签面板，**不碰编辑器内容**（性能与稳定性纪律）
-- 图标颜色不变；若配合使用同样带彩色背景的主题，二选一即可（同时开会叠加染色）
-- 只染文档树，不做其他面板
+**Settings**: `Settings → Marketplace → Downloaded → Plugins → Colorful Doc Tree → gear icon` (same path on mobile App)
 
-## 反馈
+- **Basics**: enable switch, render style (block / bar), 🎲 reshuffle colors
+- **Global tone** (collapsed by default): base color + opacity/chroma/lightness sliders + soft/normal/vivid presets — the base color makes notebooks spread into neighboring colors around it
+- **Notebook colors**: per-notebook assignment (auto, or any color via picker), custom colors come with their own fine-tuning sliders
+## Limits
 
-如有需要改进的地方，欢迎提交 [Issues](https://github.com/lamp3721/colorful-doc-tree/issues)。
+- Only tints the doc tree, never touches editor content
+- Want all notebooks in one color? Assign each one — auto-assignment is multi-color by design
+
+## Feedback
+
+Issues are welcome at [GitHub](https://github.com/lamp3721/colorful-doc-tree/issues).
