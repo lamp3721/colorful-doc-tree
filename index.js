@@ -166,7 +166,7 @@ function setAttr(li, name, on) {
   else if (!on && li.hasAttribute(name)) li.removeAttribute(name);
 }
 function walk(panel) {
-  if (panel.classList.contains("file-tree")) walkTree(panel);
+  if (panel.querySelector("li[aria-level]")) walkTree(panel);
 }
 function walkWindow(panel) {
   const po = panelObservers.find((o) => o.panel === panel);
@@ -193,7 +193,7 @@ function attach(panel) {
 function scan(force) {
   if (!force && Date.now() - lastScan < 2e3) return;
   lastScan = Date.now();
-  const panels = document.querySelectorAll('.file-tree.sy__file, [data-type="sidebar-file"] .file-tree');
+  const panels = document.querySelectorAll('.file-tree.sy__file, [data-type="sidebar-file"], [data-type="sidebar-file"] .file-tree');
   panels.forEach((p) => attach(p));
 }
 function startWatchers() {

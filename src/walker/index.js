@@ -88,9 +88,9 @@ function setAttr(li, name, on) {
 }
 
 function walk(panel) {
-    // 桌面面板带 sy__file；移动端面板无此标记但同结构（DocTreeController
-    // 同源渲染）——只要是 .file-tree 就走文档树走查
-    if (panel.classList.contains("file-tree")) walkTree(panel);
+    // 走查资格按行自证：面板里有带 aria-level 的行就是文档树（桌面
+    // .sy__file / Web .file-tree / App 无类名容器统一覆盖）
+    if (panel.querySelector("li[aria-level]")) walkTree(panel);
 }
 
 function walkWindow(panel) {
@@ -113,9 +113,10 @@ function attach(panel) {
 function scan(force) {
     if (!force && Date.now() - lastScan < 2000) return;
     lastScan = Date.now();
-    // 桌面：.file-tree.sy__file（dock 面板）；移动端：同一渲染器，面板在
-    // [data-type="sidebar-file"]（首次开边栏才挂载，initFramework.ts:59）
-    const panels = document.querySelectorAll(".file-tree.sy__file, [data-type=\"sidebar-file\"] .file-tree");
+    // 桌面：.file-tree.sy__file（dock 面板）；移动端 Web：sidebar-file 内的
+    // .file-tree；手机 App：DOM 无 .file-tree 类（v0.7.2 角标实测 ft=0 sbf=1），
+    // 直接观察 sidebar-file 容器本身——行判定按 aria 标记自证不依赖容器类名
+    const panels = document.querySelectorAll(".file-tree.sy__file, [data-type=\"sidebar-file\"], [data-type=\"sidebar-file\"] .file-tree");
     panels.forEach((p) => attach(p));
 }
 

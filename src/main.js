@@ -27,6 +27,7 @@ class ColorfulDocTree extends siyuan.Plugin {
         bindHost(this);
         await loadCfg();
         applyStyle();
+
         // 双保险首扫（v0.7.1）：正常路径在 onLayoutReady（桌面启动流程调），
         // 但移动端 afterLayoutReady 挂在"我的"菜单首开（mobile/menu/index.ts:124）
         // ——用户不点菜单走查就永远不启动。onload 直接扫一次：面板已在（移动端
