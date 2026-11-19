@@ -37,41 +37,66 @@ function nbIdOf(li) {
     return key.startsWith("notebook:") ? key.slice(9) : key;
 }
 
+// v0.7.7 行归属解析：root 行键 notebook:<id>；子行键 <nbid>/<docid>
+// （内核 DocTreeController.ts:165 同款解析）。移动端虚拟化会卸载滚出视口的行，
+// root 行卸载后继承式染色断链（子行回退默认 231 灰蓝）——改为每行按自身键
+// 独立解析所属笔记本，与 root 行是否在场无关。
+function nbOwnerOf(li) {
+    const key = li.getAttribute("data-tree-key") || "";
+    if (!key) return null;
+    if (key.startsWith("notebook:")) return key.slice(9);
+    const slash = key.indexOf("/");
+    return slash > 0 ? key.slice(0, slash) : null;
+}
+
 function walkTree(panel) {
     const rows = Array.prototype.slice.call(panel.querySelectorAll("li[aria-level]"));
     const valid = rows.filter((li) => !li.closest(".file-tree__pins") &&
         parseInt(li.getAttribute("aria-level"), 10) >= 1);
-    let cur = null;      // 当前笔记本的完整色描述 {h, s?, l?, a?}（随笔记本传递）
+    // 按笔记本 id 缓存色描述：一次走查内同本复用；跨走查由哈希/override 决定，
+    // 与行的挂载集合无关——滚动卸载/回挂不再引起颜色跳变
+    const descCache = new Map();
     let prevHue = -1;
+    const descOf = (nbid) => {
+        let d = descCache.get(nbid);
+        if (d) return d;
+        const ov = cfg.overrides && Object.prototype.hasOwnProperty.call(cfg.overrides, nbid)
+            ? cfg.overrides[nbid] : null;
+        if (ov) {
+            d = typeof ov === "number" ? { h: ov } : ov;
+        } else {
+            // shuffleSeed：'重新分配'换 seed 重洗；__baseHue（全局基色，v0.6.1）：
+            // 设了基色 → 色相围绕基色旋转（相邻档 ±360/档数，配色跟主题/基色走）；
+            // 未设 → 纯哈希档位。键固定用 notebook:<id>（root 行原键，颜色不重洗）
+            const seedKey = "notebook:" + nbid + (cfg.shuffleSeed ? "#" + cfg.shuffleSeed : "");
+            let h = hashHue(seedKey);
+            if (typeof cfg.__baseHue === "number") {
+                h = (cfg.__baseHue + (HUES.indexOf(h) - HUES.indexOf(HUES.reduce((a, b) => Math.abs(b - cfg.__baseHue) < Math.abs(a - cfg.__baseHue) ? b : a, HUES[0])) + 5) * (360 / HUES.length) + 36000) % 360;
+            }
+            if (h === prevHue) h = HUES[(HUES.indexOf(h) + 1) % HUES.length];
+            d = { h: h };
+        }
+        descCache.set(nbid, d);
+        prevHue = d.h;
+        return d;
+    };
     for (let i = 0; i < valid.length; i++) {
         const li = valid[i];
-        if (isNb(li)) {
-            const ov = cfg.overrides && Object.prototype.hasOwnProperty.call(cfg.overrides, nbIdOf(li))
-                ? cfg.overrides[nbIdOf(li)] : null;
-            if (ov) {
-                cur = typeof ov === "number" ? { h: ov } : ov;
-            } else {
-                // shuffleSeed：'重新分配'换 seed 重洗；__baseHue（全局基色，v0.6.1）：
-                // 设了基色 → 十档色相围绕基色旋转（相邻档 ±30°，配色跟主题/基色走）；
-                // 未设 → 纯哈希档位
-                const seedKey = (li.getAttribute("data-tree-key") || "") + (cfg.shuffleSeed ? "#" + cfg.shuffleSeed : "");
-                let h = hashHue(seedKey);
-                if (typeof cfg.__baseHue === "number") {
-                    h = (cfg.__baseHue + (HUES.indexOf(h) - HUES.indexOf(HUES.reduce((a, b) => Math.abs(b - cfg.__baseHue) < Math.abs(a - cfg.__baseHue) ? b : a, HUES[0])) + 5) * (360 / HUES.length) + 36000) % 360;
-                }
-                cur = { h: h };
-                if (cur.h === prevHue) cur.h = HUES[(HUES.indexOf(cur.h) + 1) % HUES.length];
-            }
-            prevHue = cur.h;
-        }
-        // 每行从 cur 统一写四变量（首子行同源同渲染）；s/l/a 仅自定义存在
+        const nbid = nbOwnerOf(li);
+        const cur = nbid ? descOf(nbid) : null;
+        // 每行从所属笔记本统一写四变量（首子行同源同渲染）；s/l/a 仅自定义存在
         const st = li.style;
         setVar(st, "--nb-h", cur ? String(cur.h) : null);
         setVar(st, "--nb-s", cur && typeof cur.s === "number" ? String(Math.round(cur.s) / 100) : null);
         setVar(st, "--nb-l", cur && typeof cur.l === "number" ? String(Math.round(cur.l) + "%") : null);
         setVar(st, "--nb-a", cur && typeof cur.a === "number" ? String(Math.round(cur.a) / 100) : null);
         if (!li.hasAttribute("data-nb-walked")) li.setAttribute("data-nb-walked", "");
-        const blockEnd = i + 1 >= valid.length || isNb(valid[i + 1]);
+        // 块边界同样按归属判定（不再按"下一行是不是 root"）：块尾=下一行属不同
+        // 笔记本；列表末行的归属可能还有未挂载的子行（虚拟化），子行不判块尾
+        // （root 自成一块时除外——折叠笔记本）。
+        const next = valid[i + 1];
+        const nextNb = next ? nbOwnerOf(next) : null;
+        const blockEnd = next ? (nextNb !== nbid) : isNb(li);
         setAttr(li, "data-nb-block-start", isNb(li));
         setAttr(li, "data-nb-block-end", blockEnd);
     }
