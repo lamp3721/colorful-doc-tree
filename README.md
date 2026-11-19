@@ -20,7 +20,7 @@ Works out of the box. When you want to tweak:
 
 - **Basics**: enable switch, render style (block / bar), 🎲 reshuffle colors
 - **Global tone** (collapsed by default): base color + opacity/chroma/lightness sliders + soft/normal/vivid presets — the base color makes notebooks spread into neighboring colors around it
-- **Notebook colors**: per-notebook assignment (10 quick hues / any color via picker / auto), custom colors come with their own fine-tuning sliders
+- **Notebook colors**: per-notebook assignment (auto, or any color via picker), custom colors come with their own fine-tuning sliders
 ## Limits
 
 - Only tints the doc tree, never touches editor content

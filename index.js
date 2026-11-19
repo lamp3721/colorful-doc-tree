@@ -69,28 +69,6 @@ function toggle() {
 
 // src/shared/color.js
 var HUES = [12, 30, 48, 66, 84, 102, 120, 138, 156, 174, 192, 210, 228, 246, 264, 282, 300, 318, 336, 354];
-var HUE_NAMES = {
-  12: "\u6A59",
-  30: "\u6A59\u9EC4",
-  48: "\u9EC4",
-  66: "\u9EC4\u7EFF",
-  84: "\u8349\u7EFF",
-  102: "\u7EFF",
-  120: "\u6DF1\u7EFF",
-  138: "\u58A8\u7EFF",
-  156: "\u9752\u7EFF",
-  174: "\u9752",
-  192: "\u5929\u9752",
-  210: "\u851A\u84DD",
-  228: "\u84DD",
-  246: "\u54C1\u84DD",
-  264: "\u975B",
-  282: "\u84DD\u7D2B",
-  300: "\u7D2B",
-  318: "\u7EDB\u7D2B",
-  336: "\u73AB\u7EA2",
-  354: "\u54C1\u7EA2"
-};
 function hashHue(key) {
   let h = 5381;
   for (let i = 0; i < key.length; i++) h = (h << 5) + h + key.charCodeAt(i) >>> 0;
@@ -522,17 +500,16 @@ function buildSetting(siyuan2, i18n) {
       optAuto.value = "";
       optAuto.textContent = L.auto || "\u81EA\u52A8";
       quick.append(optAuto);
-      HUES.forEach((h) => {
-        const o = document.createElement("option");
-        o.value = String(h);
-        o.textContent = HUE_NAMES[h];
-        quick.append(o);
-      });
       const optCustom = document.createElement("option");
       optCustom.value = "__custom__";
       optCustom.textContent = L.customDots || "\u81EA\u5B9A\u4E49\u2026";
       quick.append(optCustom);
       const cur = cfg.overrides && cfg.overrides[nb.id];
+      if (cur && typeof cur === "object" && cur.h !== void 0 && cur.s === void 0) {
+        cur.s = Math.round(cfg.chroma * 100);
+        cur.l = cfg.light;
+        if (typeof cur.a !== "number") cur.a = Math.round(cfg.chroma * 100);
+      }
       const hslOf = (o) => typeof o === "number" ? { h: o } : o || null;
       const applyOverride = (val) => {
         if (val === null) delete cfg.overrides[nb.id];
@@ -543,8 +520,7 @@ function buildSetting(siyuan2, i18n) {
       const syncUI = () => {
         const c = hslOf(cfg.overrides && cfg.overrides[nb.id]);
         const isCustom = !!(c && typeof c === "object" && c.s !== void 0);
-        const isQuick = !!(c && typeof c === "object" && c.h !== void 0 && c.s === void 0);
-        quick.value = isCustom ? "__custom__" : isQuick ? String(c.h) : "";
+        quick.value = isCustom ? "__custom__" : "";
         const hh = c ? c.h : hashHue(nb.id);
         const ss = c && c.s !== void 0 ? c.s : Math.round(cfg.chroma * 100);
         const ll = c && c.l !== void 0 ? c.l : cfg.light;
@@ -681,10 +657,8 @@ function buildSetting(siyuan2, i18n) {
             const h0 = base ? base.h : hashHue(nb.id);
             applyOverride({ h: h0, s: Math.round(cfg.chroma * 100), l: cfg.light, a: 100 });
           }
-        } else if (quick.value === "") {
-          applyOverride(null);
         } else {
-          applyOverride({ h: parseInt(quick.value, 10) });
+          applyOverride(null);
         }
         syncUI();
         syncCustomPanel();
