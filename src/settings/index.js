@@ -67,21 +67,48 @@ export function buildSetting(siyuan, i18n) {
     // 折叠分组（v0.4.2）：官方 addItem 会给 actionElement 强加居中定宽类，
     // 长列表/多控件被压成一坨——整面板走单个 row 项挂全宽容器，
     // 内部用 <details> 自绘可折叠分组
+    // v0.7.11 三页式导航栏：面板顶部三行导航（基础/全局色调/笔记本颜色，
+    // 官方 entryVisibility location 形态——b3-list-item + 右箭头），点行切页；
+    // 下方内容区只显示当前页（原 <details> 折叠组体系整个退役——单页不再
+    // 会被全展开顶破，issue #2 的截断场景从结构上消失）
     const container = document.createElement("div");
-    container.style.cssText = "width:100%";
-    const mkGroup = (title, open) => {
-        const det = document.createElement("details");
-        det.open = open !== false;
-        det.style.marginBottom = "8px";
-        const sum = document.createElement("summary");
-        sum.textContent = title;
-        sum.style.cssText = "cursor:pointer;font-weight:600;padding:6px 0;border-bottom:1px solid var(--b3-border-color);user-select:none";
-        const body = document.createElement("div");
-        body.style.paddingTop = "4px";
-        det.append(sum, body);
-        container.append(det);
-        return body;
+    container.style.cssText = "width:100%;display:flex;flex-direction:column";
+    const navBox = document.createElement("div");
+    navBox.className = "b3-list b3-list--background";
+    navBox.style.cssText = "margin:0 0 10px 0;border:1px solid var(--b3-border-color);border-radius:6px;flex-shrink:0";
+    container.append(navBox);
+    const pageBox = document.createElement("div");
+    pageBox.style.cssText = "flex:1;overflow-y:auto;min-height:0";
+    container.append(pageBox);
+    const pages = {};   // key → {li, page}
+    let curPageKey = null;
+    const mkNavRow = (key, label, mkPage) => {
+        const li = document.createElement("div");
+        li.className = "b3-list-item";
+        li.style.cssText = "display:flex;align-items:center;gap:8px;padding:7px 10px;cursor:pointer;border-radius:4px;margin:1px 2px";
+        const txt = document.createElement("span");
+        txt.className = "b3-list-item__text";
+        txt.style.cssText = "font-size:13px;flex:1";
+        txt.textContent = label;
+        const arrow = document.createElement("span");
+        arrow.style.cssText = "flex-shrink:0;opacity:.5;display:flex";
+        arrow.innerHTML = '<svg style="width:14px;height:14px"><use xlink:href="#iconRight"></use></svg>';
+        li.append(txt, arrow);
+        const page = document.createElement("div");
+        page.style.display = "none";
+        pageBox.append(page);
+        pages[key] = { li, page };
+        mkPage(page);
+        li.onclick = () => {
+            Object.values(pages).forEach((p) => { p.li.style.background = ""; p.page.style.display = "none"; });
+            li.style.background = "var(--b3-list-item-hover, rgba(128,128,128,.12))";
+            page.style.display = "";
+            curPageKey = key;
+        };
+        navBox.append(li);
+        return { page };
     };
+    const goKey = (key) => { if (pages[key]) pages[key].li.click(); };
     // ── 预览条（v0.5.7 面板第一公民）——三个模拟块即时反映浓度/形态/统一 ──
     const pvBox = document.createElement("div");
     pvBox.style.cssText = "display:flex;gap:6px;padding:8px 0;margin-bottom:4px;border-bottom:1px solid var(--b3-border-color)";
@@ -105,9 +132,11 @@ export function buildSetting(siyuan, i18n) {
         });
     };
     refreshPreview();
-    container.append(pvBox);
     // ── 分组一：基础 ──
-    const gBase = mkGroup(L.gBasic || "基础", true);
+    // ── 页：基础 ──（预览条放本页顶部）
+    const gBase = mkNavRow("base", L.gBasic || "基础", (page) => {
+        page.append(pvBox);
+    }).page;
     gBase.append(mkToggle(L.enabled || "启用彩色背景", "enabled"));
     const styleRow = document.createElement("div");
     styleRow.className = "fn__flex";
@@ -139,7 +168,8 @@ export function buildSetting(siyuan, i18n) {
     // 矫枉过正砍滑条（按主题配色需要三参精修）。正解：色板选色把 hexToHsl
     // 的 s/l 写回 chroma/light（滑条联动到正确起点），滑条再微调质感；
     // 基色同时记录 __baseHue（全局色相——哈希分配围绕它旋转，配色跟主题走）。
-    const gTone = mkGroup(L.gTone || "全局色调", false);   // 默认收起：装上即用，精调再展开
+    // ── 页：全局色调 ──
+    const gTone = mkNavRow("tone", L.gTone || "全局色调", (page) => {}).page;
     const toneRow = document.createElement("div");
     toneRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin:6px 0";
     const toneName = document.createElement("span");
@@ -213,9 +243,7 @@ export function buildSetting(siyuan, i18n) {
         tpRow.append(b);
     });
     gTone.append(tpRow);
-    // mkGroup 返回 body（details 的内容容器）——移动要移父级 details，否则
-    // body 被从 details 抽走、组变空壳（v0.6.1 排查实录）
-    gBase.parentNode.insertBefore(gTone.parentElement, gBase.nextSibling);
+
     [sAlpha, sChroma, sLight].forEach((box) => {
         const sl = box.querySelector("input");
         if (sl) sl.addEventListener("input", refreshPreview);
@@ -234,13 +262,12 @@ export function buildSetting(siyuan, i18n) {
     };
     reRow.append(reBtn);
     gBase.append(reRow);
-    // ── 笔记本颜色（v0.7.10 导航页式）──：官方 entryVisibility 列表形态
-    // （b3-list-item + 色点 + 右箭头），点一下打开该本的独立编辑窗——
-    // 主面板不再内嵌长列表+嵌套参数区（issue #2 截断与误触的温床）。
+    // ── 页：笔记本颜色 ──（v0.7.11 点行内容区切到该本调色页，不再弹窗）
+    const gNb = mkNavRow("nb", L.nbColors || "笔记本颜色", (page) => {}).page;
     const nbBox = document.createElement("div");
     nbBox.className = "b3-list b3-list--background";
-    nbBox.style.cssText = "margin:4px 0;border:1px solid var(--b3-border-color);border-radius:6px;max-height:288px;overflow-y:auto";
-    container.append(nbBox);
+    nbBox.style.cssText = "margin:4px 0;border:1px solid var(--b3-border-color);border-radius:6px;overflow-y:auto";
+    gNb.append(nbBox);
     // 全部恢复自动（v0.6.4 语义保留）：清空 override 回自动
     const resetRow = document.createElement("div");
     resetRow.style.cssText = "margin-top:6px";
@@ -257,7 +284,7 @@ export function buildSetting(siyuan, i18n) {
         refreshListDots();
     };
     resetRow.append(resetBtn);
-    container.append(resetRow);
+    gNb.append(resetRow);
 
     // 一本的颜色解析（walker descOf 同语义的独立版）：override → {h,s?,l?,a?}，
     // 自动 → 哈希档 + 全局质感。显示与编辑都用它。
@@ -297,6 +324,7 @@ export function buildSetting(siyuan, i18n) {
                     const name = document.createElement("span");
                     name.className = "b3-list-item__text";
                     name.style.cssText = "font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1";
+                    name.textContent = nb.name;   // v0.7.10 重构时曾丢失→行只剩"自动"徽标
                     const isCustom = !!(cfg.overrides && cfg.overrides[nb.id]);
                     const customBadge = document.createElement("span");
                     customBadge.textContent = isCustom ? (L.customDots || "自定义") : (L.auto || "自动");
@@ -432,22 +460,24 @@ export function buildSetting(siyuan, i18n) {
             }
         });
         syncUI();
-        // 注册进批量刷新链；销毁时注销（窗关了不该再被刷）
+        // 注册进批量刷新链；离开该页时注销（页面不再显示就不该被刷）
         openEditors.push(syncUI);
-        const dialog = new siyuan.Dialog({
-            title: (L.nbColor || "笔记本颜色") + " · " + nb.name,
-            content: "",
-            width: "380px",
-            height: "",
-        });
-        // content 走 DOM append（保持事件绑定），不给 HTML 字符串
-        dialog.element.querySelector(".b3-dialog__content").append(d);
-        dialog.element.querySelector(".b3-dialog__container").style.height = "auto";
-        const idx = openEditors.indexOf(syncUI);
-        dialog.destroy = ((orig) => function () {
-            if (idx >= 0) openEditors.splice(idx, 1);
-            orig.call(this);
-        })(dialog.destroy.bind(dialog));
+        // v0.7.11：不再弹独立窗——内容区整页切到该本的调色页。
+        // 顶部返回行（官方 entryVisibility back-entry 形态）
+        const back = document.createElement("div");
+        back.style.cssText = "display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 0 10px;border-bottom:1px solid var(--b3-border-color);margin-bottom:8px;font-size:13px;opacity:.8";
+        back.innerHTML = '<svg style="width:14px;height:14px"><use xlink:href="#iconLeft"></use></svg>';
+        back.append(document.createTextNode(L.back || "返回"));
+        back.onclick = () => { unreg(); d.remove(); goKey("nb"); };
+        const unreg = () => {
+            const i = openEditors.indexOf(syncUI);
+            if (i >= 0) openEditors.splice(i, 1);
+        };
+        // 借用 nb 导航页"选中"位：先移内容再挂（pageBox 一次只显示一页）
+        Object.values(pages).forEach((p) => { p.li.style.background = ""; p.page.style.display = "none"; });
+        pages.nb.li.style.background = "var(--b3-list-item-hover, rgba(128,128,128,.12))";
+        d.prepend(back);
+        pageBox.append(d);
     };
     // 官方 Setting：单 row 项挂全宽容器（fn__block 不受 fn__size200 定宽挤压）
     // 高度 76vh（v0.7.9 修 #2 底部截断）：auto 跟随内容超屏时容器被裁
@@ -455,5 +485,6 @@ export function buildSetting(siyuan, i18n) {
 // ——面板三组全展开超屏时内容区自滚，始终完整可达
 const setting = new siyuan.Setting({ width: "560px", height: "76vh" });
     setting.addItem({ title: "", direction: "row", actionElement: container });
+    goKey("base");   // 默认落在基础页
     return setting;
 }

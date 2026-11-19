@@ -302,19 +302,47 @@ function buildSetting(siyuan2, i18n) {
     return row;
   };
   const container = document.createElement("div");
-  container.style.cssText = "width:100%";
-  const mkGroup = (title, open) => {
-    const det = document.createElement("details");
-    det.open = open !== false;
-    det.style.marginBottom = "8px";
-    const sum = document.createElement("summary");
-    sum.textContent = title;
-    sum.style.cssText = "cursor:pointer;font-weight:600;padding:6px 0;border-bottom:1px solid var(--b3-border-color);user-select:none";
-    const body = document.createElement("div");
-    body.style.paddingTop = "4px";
-    det.append(sum, body);
-    container.append(det);
-    return body;
+  container.style.cssText = "width:100%;display:flex;flex-direction:column";
+  const navBox = document.createElement("div");
+  navBox.className = "b3-list b3-list--background";
+  navBox.style.cssText = "margin:0 0 10px 0;border:1px solid var(--b3-border-color);border-radius:6px;flex-shrink:0";
+  container.append(navBox);
+  const pageBox = document.createElement("div");
+  pageBox.style.cssText = "flex:1;overflow-y:auto;min-height:0";
+  container.append(pageBox);
+  const pages = {};
+  let curPageKey = null;
+  const mkNavRow = (key, label, mkPage) => {
+    const li = document.createElement("div");
+    li.className = "b3-list-item";
+    li.style.cssText = "display:flex;align-items:center;gap:8px;padding:7px 10px;cursor:pointer;border-radius:4px;margin:1px 2px";
+    const txt = document.createElement("span");
+    txt.className = "b3-list-item__text";
+    txt.style.cssText = "font-size:13px;flex:1";
+    txt.textContent = label;
+    const arrow = document.createElement("span");
+    arrow.style.cssText = "flex-shrink:0;opacity:.5;display:flex";
+    arrow.innerHTML = '<svg style="width:14px;height:14px"><use xlink:href="#iconRight"></use></svg>';
+    li.append(txt, arrow);
+    const page = document.createElement("div");
+    page.style.display = "none";
+    pageBox.append(page);
+    pages[key] = { li, page };
+    mkPage(page);
+    li.onclick = () => {
+      Object.values(pages).forEach((p) => {
+        p.li.style.background = "";
+        p.page.style.display = "none";
+      });
+      li.style.background = "var(--b3-list-item-hover, rgba(128,128,128,.12))";
+      page.style.display = "";
+      curPageKey = key;
+    };
+    navBox.append(li);
+    return { page };
+  };
+  const goKey = (key) => {
+    if (pages[key]) pages[key].li.click();
   };
   const pvBox = document.createElement("div");
   pvBox.style.cssText = "display:flex;gap:6px;padding:8px 0;margin-bottom:4px;border-bottom:1px solid var(--b3-border-color)";
@@ -338,8 +366,9 @@ function buildSetting(siyuan2, i18n) {
     });
   };
   refreshPreview();
-  container.append(pvBox);
-  const gBase = mkGroup(L.gBasic || "\u57FA\u7840", true);
+  const gBase = mkNavRow("base", L.gBasic || "\u57FA\u7840", (page) => {
+    page.append(pvBox);
+  }).page;
   gBase.append(mkToggle(L.enabled || "\u542F\u7528\u5F69\u8272\u80CC\u666F", "enabled"));
   const styleRow = document.createElement("div");
   styleRow.className = "fn__flex";
@@ -364,7 +393,8 @@ function buildSetting(siyuan2, i18n) {
   });
   styleRow.append(styleName, styleSel);
   gBase.append(styleRow);
-  const gTone = mkGroup(L.gTone || "\u5168\u5C40\u8272\u8C03", false);
+  const gTone = mkNavRow("tone", L.gTone || "\u5168\u5C40\u8272\u8C03", (page) => {
+  }).page;
   const toneRow = document.createElement("div");
   toneRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin:6px 0";
   const toneName = document.createElement("span");
@@ -438,7 +468,6 @@ function buildSetting(siyuan2, i18n) {
     tpRow.append(b);
   });
   gTone.append(tpRow);
-  gBase.parentNode.insertBefore(gTone.parentElement, gBase.nextSibling);
   [sAlpha, sChroma, sLight].forEach((box) => {
     const sl = box.querySelector("input");
     if (sl) sl.addEventListener("input", refreshPreview);
@@ -456,10 +485,12 @@ function buildSetting(siyuan2, i18n) {
   };
   reRow.append(reBtn);
   gBase.append(reRow);
+  const gNb = mkNavRow("nb", L.nbColors || "\u7B14\u8BB0\u672C\u989C\u8272", (page) => {
+  }).page;
   const nbBox = document.createElement("div");
   nbBox.className = "b3-list b3-list--background";
-  nbBox.style.cssText = "margin:4px 0;border:1px solid var(--b3-border-color);border-radius:6px;max-height:288px;overflow-y:auto";
-  container.append(nbBox);
+  nbBox.style.cssText = "margin:4px 0;border:1px solid var(--b3-border-color);border-radius:6px;overflow-y:auto";
+  gNb.append(nbBox);
   const resetRow = document.createElement("div");
   resetRow.style.cssText = "margin-top:6px";
   const resetBtn = document.createElement("button");
@@ -475,7 +506,7 @@ function buildSetting(siyuan2, i18n) {
     refreshListDots();
   };
   resetRow.append(resetBtn);
-  container.append(resetRow);
+  gNb.append(resetRow);
   const descOf = (nbid) => {
     const ov = cfg.overrides && Object.prototype.hasOwnProperty.call(cfg.overrides, nbid) ? cfg.overrides[nbid] : null;
     if (ov) return typeof ov === "number" ? { h: ov } : ov;
@@ -510,6 +541,7 @@ function buildSetting(siyuan2, i18n) {
         const name = document.createElement("span");
         name.className = "b3-list-item__text";
         name.style.cssText = "font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1";
+        name.textContent = nb.name;
         const isCustom = !!(cfg.overrides && cfg.overrides[nb.id]);
         const customBadge = document.createElement("span");
         customBadge.textContent = isCustom ? L.customDots || "\u81EA\u5B9A\u4E49" : L.auto || "\u81EA\u52A8";
@@ -687,22 +719,30 @@ function buildSetting(siyuan2, i18n) {
     });
     syncUI();
     openEditors.push(syncUI);
-    const dialog = new siyuan2.Dialog({
-      title: (L.nbColor || "\u7B14\u8BB0\u672C\u989C\u8272") + " \xB7 " + nb.name,
-      content: "",
-      width: "380px",
-      height: ""
+    const back = document.createElement("div");
+    back.style.cssText = "display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 0 10px;border-bottom:1px solid var(--b3-border-color);margin-bottom:8px;font-size:13px;opacity:.8";
+    back.innerHTML = '<svg style="width:14px;height:14px"><use xlink:href="#iconLeft"></use></svg>';
+    back.append(document.createTextNode(L.back || "\u8FD4\u56DE"));
+    back.onclick = () => {
+      unreg();
+      d.remove();
+      goKey("nb");
+    };
+    const unreg = () => {
+      const i = openEditors.indexOf(syncUI);
+      if (i >= 0) openEditors.splice(i, 1);
+    };
+    Object.values(pages).forEach((p) => {
+      p.li.style.background = "";
+      p.page.style.display = "none";
     });
-    dialog.element.querySelector(".b3-dialog__content").append(d);
-    dialog.element.querySelector(".b3-dialog__container").style.height = "auto";
-    const idx = openEditors.indexOf(syncUI);
-    dialog.destroy = /* @__PURE__ */ ((orig) => function() {
-      if (idx >= 0) openEditors.splice(idx, 1);
-      orig.call(this);
-    })(dialog.destroy.bind(dialog));
+    pages.nb.li.style.background = "var(--b3-list-item-hover, rgba(128,128,128,.12))";
+    d.prepend(back);
+    pageBox.append(d);
   };
   const setting = new siyuan2.Setting({ width: "560px", height: "76vh" });
   setting.addItem({ title: "", direction: "row", actionElement: container });
+  goKey("base");
   return setting;
 }
 
