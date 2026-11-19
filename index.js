@@ -206,6 +206,9 @@ function scan(force) {
   const panels = document.querySelectorAll('.file-tree.sy__file, [data-type="sidebar-file"], [data-type="sidebar-file"] .file-tree');
   panels.forEach((p) => attach(p));
 }
+function rescan() {
+  scan(true);
+}
 function startWatchers() {
   if (onMouseup) return;
   onMouseup = () => scan();
@@ -761,7 +764,10 @@ var ColorfulDocTree = class extends siyuan.Plugin {
   // 布局就绪再启动走查（v0.5.3 修"刷新界面颜色迟到数秒"）：面板已在 DOM，
   // scan(true) 一次到位；官方插件生命周期专用钩子（lifecycle.ts runLayout）
   onLayoutReady() {
-    if (cfg.enabled) startWatchers();
+    if (cfg.enabled) {
+      startWatchers();
+      rescan();
+    }
   }
   // 覆写即免重载（plugin/lifecycle.ts:469——未覆写时 saveData 的 data change
   // 任务原位提升为整插件 reload；本实例内存 cfg 即权威）

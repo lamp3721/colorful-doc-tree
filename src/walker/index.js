@@ -148,6 +148,12 @@ function scan(force) {
     panels.forEach((p) => attach(p));
 }
 
+// 强制重扫（v0.7.13 刷新迟色回归修复）：onLayoutReady 必须再扫一次——
+// onload 首扫时桌面 dock 未建（扫空），而 startWatchers 的 onMouseup 哨兵
+// 让 onLayoutReady 的 startWatchers() 早退，面板建好后无人走查，
+// 颜色只能等第一次 mouseup 才出现（"刷新后颜色加载很慢"根因）
+export function rescan() { scan(true); }
+
 export function startWatchers() {
     if (onMouseup) return;
     // 移动端没有 mouseup 主力（触摸），touchend 同样作为发现时机

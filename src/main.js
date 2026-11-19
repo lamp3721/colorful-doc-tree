@@ -13,7 +13,7 @@
 const siyuan = require("siyuan");
 import { cfg, bindHost, loadCfg, persist, flushCfg } from './shared/config.js';
 import { applyStyle, removeStyle, toggle as toggleStyle } from './render/index.js';
-import { startWatchers, stopWatchers, clearMarks } from './walker/index.js';
+import { startWatchers, stopWatchers, clearMarks, rescan } from './walker/index.js';
 import { buildSetting } from './settings/index.js';
 
 class ColorfulDocTree extends siyuan.Plugin {
@@ -46,7 +46,7 @@ class ColorfulDocTree extends siyuan.Plugin {
     // 布局就绪再启动走查（v0.5.3 修"刷新界面颜色迟到数秒"）：面板已在 DOM，
     // scan(true) 一次到位；官方插件生命周期专用钩子（lifecycle.ts runLayout）
     onLayoutReady() {
-        if (cfg.enabled) startWatchers();
+        if (cfg.enabled) { startWatchers(); rescan(); }   // rescan：布局好了面板必扫（v0.7.13）
     }
 
     // 覆写即免重载（plugin/lifecycle.ts:469——未覆写时 saveData 的 data change
