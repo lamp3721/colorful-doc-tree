@@ -120,9 +120,9 @@ function isNb(li) {
 function nbOwnerOf(li) {
   const key = li.getAttribute("data-tree-key") || "";
   if (!key) return null;
-  if (key.startsWith("notebook:")) return key.slice(9);
-  const slash = key.indexOf("/");
-  return slash > 0 ? key.slice(0, slash) : null;
+  const k = key.startsWith("notebook:") ? key.slice(9) : key;
+  const slash = k.indexOf("/");
+  return slash > 0 ? k.slice(0, slash) : k || null;
 }
 function walkTree(panel) {
   const rows = Array.prototype.slice.call(panel.querySelectorAll("li[aria-level]"));

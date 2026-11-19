@@ -42,11 +42,14 @@ function nbIdOf(li) {
 // root 行卸载后继承式染色断链（子行回退默认 231 灰蓝）——改为每行按自身键
 // 独立解析所属笔记本，与 root 行是否在场无关。
 function nbOwnerOf(li) {
+    // 键是递归拼接（DocTreeModel.ts:106 occurrenceKey = parentKey + "/" + id）：
+    // root = notebook:<id>，子行 = notebook:<id>/<docId>，孙行再叠 /<docId>…
+    // 剥 notebook: 前缀后截第一个斜杠，剩下的第一段才是所属笔记本 id
     const key = li.getAttribute("data-tree-key") || "";
     if (!key) return null;
-    if (key.startsWith("notebook:")) return key.slice(9);
-    const slash = key.indexOf("/");
-    return slash > 0 ? key.slice(0, slash) : null;
+    const k = key.startsWith("notebook:") ? key.slice(9) : key;
+    const slash = k.indexOf("/");
+    return slash > 0 ? k.slice(0, slash) : (k || null);
 }
 
 function walkTree(panel) {
