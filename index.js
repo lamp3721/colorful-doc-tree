@@ -117,39 +117,50 @@ function isNb(li) {
   const dt = li.getAttribute("data-type");
   return dt === "navigation-root" || dt === "navigation-closed";
 }
-function nbIdOf(li) {
+function nbOwnerOf(li) {
   const key = li.getAttribute("data-tree-key") || "";
-  return key.startsWith("notebook:") ? key.slice(9) : key;
+  if (!key) return null;
+  const k = key.startsWith("notebook:") ? key.slice(9) : key;
+  const slash = k.indexOf("/");
+  return slash > 0 ? k.slice(0, slash) : k || null;
 }
 function walkTree(panel) {
   const rows = Array.prototype.slice.call(panel.querySelectorAll("li[aria-level]"));
   const valid = rows.filter((li) => !li.closest(".file-tree__pins") && parseInt(li.getAttribute("aria-level"), 10) >= 1);
-  let cur = null;
+  const descCache = /* @__PURE__ */ new Map();
   let prevHue = -1;
+  const descOf = (nbid) => {
+    let d = descCache.get(nbid);
+    if (d) return d;
+    const ov = cfg.overrides && Object.prototype.hasOwnProperty.call(cfg.overrides, nbid) ? cfg.overrides[nbid] : null;
+    if (ov) {
+      d = typeof ov === "number" ? { h: ov } : ov;
+    } else {
+      const seedKey = "notebook:" + nbid + (cfg.shuffleSeed ? "#" + cfg.shuffleSeed : "");
+      let h = hashHue(seedKey);
+      if (typeof cfg.__baseHue === "number") {
+        h = (cfg.__baseHue + (HUES.indexOf(h) - HUES.indexOf(HUES.reduce((a, b) => Math.abs(b - cfg.__baseHue) < Math.abs(a - cfg.__baseHue) ? b : a, HUES[0])) + 5) * (360 / HUES.length) + 36e3) % 360;
+      }
+      if (h === prevHue) h = HUES[(HUES.indexOf(h) + 1) % HUES.length];
+      d = { h };
+    }
+    descCache.set(nbid, d);
+    prevHue = d.h;
+    return d;
+  };
   for (let i = 0; i < valid.length; i++) {
     const li = valid[i];
-    if (isNb(li)) {
-      const ov = cfg.overrides && Object.prototype.hasOwnProperty.call(cfg.overrides, nbIdOf(li)) ? cfg.overrides[nbIdOf(li)] : null;
-      if (ov) {
-        cur = typeof ov === "number" ? { h: ov } : ov;
-      } else {
-        const seedKey = (li.getAttribute("data-tree-key") || "") + (cfg.shuffleSeed ? "#" + cfg.shuffleSeed : "");
-        let h = hashHue(seedKey);
-        if (typeof cfg.__baseHue === "number") {
-          h = (cfg.__baseHue + (HUES.indexOf(h) - HUES.indexOf(HUES.reduce((a, b) => Math.abs(b - cfg.__baseHue) < Math.abs(a - cfg.__baseHue) ? b : a, HUES[0])) + 5) * (360 / HUES.length) + 36e3) % 360;
-        }
-        cur = { h };
-        if (cur.h === prevHue) cur.h = HUES[(HUES.indexOf(cur.h) + 1) % HUES.length];
-      }
-      prevHue = cur.h;
-    }
+    const nbid = nbOwnerOf(li);
+    const cur = nbid ? descOf(nbid) : null;
     const st = li.style;
     setVar(st, "--nb-h", cur ? String(cur.h) : null);
     setVar(st, "--nb-s", cur && typeof cur.s === "number" ? String(Math.round(cur.s) / 100) : null);
     setVar(st, "--nb-l", cur && typeof cur.l === "number" ? String(Math.round(cur.l) + "%") : null);
     setVar(st, "--nb-a", cur && typeof cur.a === "number" ? String(Math.round(cur.a) / 100) : null);
     if (!li.hasAttribute("data-nb-walked")) li.setAttribute("data-nb-walked", "");
-    const blockEnd = i + 1 >= valid.length || isNb(valid[i + 1]);
+    const next = valid[i + 1];
+    const nextNb = next ? nbOwnerOf(next) : null;
+    const blockEnd = next ? nextNb !== nbid : isNb(li);
     setAttr(li, "data-nb-block-start", isNb(li));
     setAttr(li, "data-nb-block-end", blockEnd);
   }
