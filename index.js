@@ -302,19 +302,40 @@ function buildSetting(siyuan2, i18n) {
     return row;
   };
   const container = document.createElement("div");
-  container.style.cssText = "width:100%";
-  const mkGroup = (title, open) => {
-    const det = document.createElement("details");
-    det.open = open !== false;
-    det.style.marginBottom = "8px";
-    const sum = document.createElement("summary");
-    sum.textContent = title;
-    sum.style.cssText = "cursor:pointer;font-weight:600;padding:6px 0;border-bottom:1px solid var(--b3-border-color);user-select:none";
-    const body = document.createElement("div");
-    body.style.paddingTop = "4px";
-    det.append(sum, body);
-    container.append(det);
-    return body;
+  container.style.cssText = "width:100%;display:flex;flex-direction:column";
+  const navBox = document.createElement("div");
+  navBox.style.cssText = "display:flex;gap:6px;margin:0 0 10px 0;flex-shrink:0";
+  container.append(navBox);
+  const pageBox = document.createElement("div");
+  pageBox.style.cssText = "flex:1;overflow-y:auto;overflow-x:hidden;min-height:0";
+  container.append(pageBox);
+  const pages = {};
+  let curPageKey = null;
+  const mkNavRow = (key, label, mkPage) => {
+    const li = document.createElement("div");
+    li.style.cssText = "flex:1;display:flex;align-items:center;justify-content:center;padding:7px 4px;cursor:pointer;border:1px solid var(--b3-border-color);border-radius:6px;font-size:13px;user-select:none;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis";
+    li.textContent = label;
+    const page = document.createElement("div");
+    page.style.display = "none";
+    pageBox.append(page);
+    pages[key] = { li, page };
+    mkPage(page);
+    li.onclick = () => {
+      Object.values(pages).forEach((p) => {
+        p.li.style.background = "";
+        p.li.style.color = "";
+        p.page.style.display = "none";
+      });
+      li.style.background = "var(--b3-list-item-hover, rgba(128,128,128,.15))";
+      li.style.color = "var(--b3-theme-primary, #3575f0)";
+      page.style.display = "";
+      curPageKey = key;
+    };
+    navBox.append(li);
+    return { page };
+  };
+  const goKey = (key) => {
+    if (pages[key]) pages[key].li.click();
   };
   const pvBox = document.createElement("div");
   pvBox.style.cssText = "display:flex;gap:6px;padding:8px 0;margin-bottom:4px;border-bottom:1px solid var(--b3-border-color)";
@@ -338,8 +359,9 @@ function buildSetting(siyuan2, i18n) {
     });
   };
   refreshPreview();
-  container.append(pvBox);
-  const gBase = mkGroup(L.gBasic || "\u57FA\u7840", true);
+  const gBase = mkNavRow("base", L.gBasic || "\u57FA\u7840", (page) => {
+    page.append(pvBox);
+  }).page;
   gBase.append(mkToggle(L.enabled || "\u542F\u7528\u5F69\u8272\u80CC\u666F", "enabled"));
   const styleRow = document.createElement("div");
   styleRow.className = "fn__flex";
@@ -364,7 +386,8 @@ function buildSetting(siyuan2, i18n) {
   });
   styleRow.append(styleName, styleSel);
   gBase.append(styleRow);
-  const gTone = mkGroup(L.gTone || "\u5168\u5C40\u8272\u8C03", false);
+  const gTone = mkNavRow("tone", L.gTone || "\u5168\u5C40\u8272\u8C03", (page) => {
+  }).page;
   const toneRow = document.createElement("div");
   toneRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin:6px 0";
   const toneName = document.createElement("span");
@@ -438,7 +461,6 @@ function buildSetting(siyuan2, i18n) {
     tpRow.append(b);
   });
   gTone.append(tpRow);
-  gBase.parentNode.insertBefore(gTone.parentElement, gBase.nextSibling);
   [sAlpha, sChroma, sLight].forEach((box) => {
     const sl = box.querySelector("input");
     if (sl) sl.addEventListener("input", refreshPreview);
@@ -456,9 +478,14 @@ function buildSetting(siyuan2, i18n) {
   };
   reRow.append(reBtn);
   gBase.append(reRow);
-  const gNb = mkGroup(L.nbColors || "\u7B14\u8BB0\u672C\u989C\u8272", true);
+  const gNb = mkNavRow("nb", L.nbColors || "\u7B14\u8BB0\u672C\u989C\u8272", (page) => {
+  }).page;
+  const nbBox = document.createElement("div");
+  nbBox.className = "b3-list b3-list--background";
+  nbBox.style.cssText = "margin:4px 0;border:1px solid var(--b3-border-color);border-radius:6px;overflow-y:auto";
+  gNb.append(nbBox);
   const resetRow = document.createElement("div");
-  resetRow.style.marginBottom = "8px";
+  resetRow.style.cssText = "margin-top:6px";
   const resetBtn = document.createElement("button");
   resetBtn.className = "b3-button b3-button--outline";
   resetBtn.style.fontSize = "12px";
@@ -468,228 +495,248 @@ function buildSetting(siyuan2, i18n) {
     applyStyle();
     walkAllNow();
     persistSoon();
-    nbBox.dispatchEvent(new CustomEvent("cftree-rows-refresh"));
+    buildList();
+    refreshListDots();
   };
   resetRow.append(resetBtn);
   gNb.append(resetRow);
-  const nbBox = document.createElement("div");
-  nbBox.style.cssText = "display:flex;flex-direction:column;gap:4px;max-height:288px;overflow-y:auto";
-  gNb.append(nbBox);
-  const rowRefreshers = [];
-  nbBox.addEventListener("cftree-rows-refresh", () => {
-    rowRefreshers.forEach((fn) => {
+  const descOf = (nbid) => {
+    const ov = cfg.overrides && Object.prototype.hasOwnProperty.call(cfg.overrides, nbid) ? cfg.overrides[nbid] : null;
+    if (ov) return typeof ov === "number" ? { h: ov } : ov;
+    let h = hashHue("notebook:" + nbid + (cfg.shuffleSeed ? "#" + cfg.shuffleSeed : ""));
+    if (typeof cfg.__baseHue === "number") {
+      h = (cfg.__baseHue + (HUES.indexOf(h) - HUES.indexOf(HUES.reduce((a, b) => Math.abs(b - cfg.__baseHue) < Math.abs(a - cfg.__baseHue) ? b : a, HUES[0])) + 5) * (360 / HUES.length) + 36e3) % 360;
+    }
+    return { h };
+  };
+  const curColorHex = (nbid) => {
+    const d = descOf(nbid);
+    const hh = d.h;
+    const ss = typeof d.s === "number" ? d.s : Math.round(cfg.chroma * 100);
+    const ll = typeof d.l === "number" ? d.l : cfg.light;
+    return hslToHex(hh, ss / 100, ll / 100);
+  };
+  const buildList = () => {
+    nbBox.textContent = "";
+    fetch("/api/notebook/lsNotebooks", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }).then((r) => r.json()).then((data) => {
+      const notebooks = data && data.data && data.data.notebooks || [];
+      if (!notebooks.length) {
+        nbBox.textContent = L.noNotebooks || "\uFF08\u672A\u83B7\u53D6\u5230\u7B14\u8BB0\u672C\uFF09";
+        return;
+      }
+      notebooks.forEach((nb) => {
+        if (nb.closed) return;
+        const li = document.createElement("div");
+        li.className = "b3-list-item";
+        li.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 8px;cursor:pointer;border-radius:4px;margin:1px 2px";
+        const dot = document.createElement("span");
+        dot.style.cssText = "width:14px;height:14px;border-radius:50%;flex-shrink:0;border:1px solid var(--b3-border-color)";
+        const name = document.createElement("span");
+        name.className = "b3-list-item__text";
+        name.style.cssText = "font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1";
+        name.textContent = nb.name;
+        const isCustom = !!(cfg.overrides && cfg.overrides[nb.id]);
+        const customBadge = document.createElement("span");
+        customBadge.textContent = isCustom ? L.customDots || "\u81EA\u5B9A\u4E49" : L.auto || "\u81EA\u52A8";
+        customBadge.style.cssText = "font-size:11px;opacity:.6;flex-shrink:0";
+        const arrow = document.createElement("span");
+        arrow.style.cssText = "flex-shrink:0;opacity:.5;display:flex";
+        arrow.innerHTML = '<svg style="width:14px;height:14px"><use xlink:href="#iconRight"></use></svg>';
+        li.append(dot, name, customBadge, arrow);
+        li.onclick = () => openNbEditor(nb);
+        nbBox.append(li);
+        const sync = () => {
+          dot.style.background = curColorHex(nb.id);
+          customBadge.textContent = cfg.overrides && cfg.overrides[nb.id] ? L.customDots || "\u81EA\u5B9A\u4E49" : L.auto || "\u81EA\u52A8";
+        };
+        li._cftreeSync = sync;
+        sync();
+      });
+      refreshListDots();
+    }).catch(() => {
+      nbBox.textContent = L.noNotebooks || "\uFF08\u672A\u83B7\u53D6\u5230\u7B14\u8BB0\u672C\uFF09";
+    });
+  };
+  const openEditors = [];
+  const refreshListDots = () => {
+    nbBox.querySelectorAll(".b3-list-item").forEach((li) => {
+      if (li._cftreeSync) li._cftreeSync();
+    });
+    openEditors.forEach((fn) => {
       try {
         fn();
       } catch (e) {
-        console.error("[cftree] \u884C\u5237\u65B0\u5931\u8D25:", e);
+        console.error("[cftree] \u7F16\u8F91\u7A97\u5237\u65B0\u5931\u8D25:", e);
       }
     });
-  });
-  fetch("/api/notebook/lsNotebooks", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }).then((r) => r.json()).then((data) => {
-    const notebooks = data && data.data && data.data.notebooks || [];
-    if (!notebooks.length) {
-      nbBox.textContent = L.noNotebooks || "\uFF08\u672A\u83B7\u53D6\u5230\u7B14\u8BB0\u672C\uFF09";
-      return;
-    }
-    notebooks.forEach((nb) => {
-      if (nb.closed) return;
-      const row = document.createElement("div");
-      row.style.cssText = "display:flex;justify-content:space-between;align-items:center";
-      const name = document.createElement("span");
-      name.style.cssText = "font-size:12px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
-      name.textContent = nb.name;
-      const ctrl = document.createElement("div");
-      ctrl.style.cssText = "display:flex;align-items:center;gap:4px";
-      const swatch = document.createElement("input");
-      swatch.type = "color";
-      swatch.className = "b3-color-picker";
-      swatch.style.cssText = "width:26px;height:22px;padding:0;border:1px solid var(--b3-border-color);background:transparent;cursor:pointer";
-      const quick = document.createElement("select");
-      quick.className = "b3-select";
-      quick.style.cssText = "width:90px;font-size:12px";
-      const optAuto = document.createElement("option");
-      optAuto.value = "";
-      optAuto.textContent = L.auto || "\u81EA\u52A8";
-      quick.append(optAuto);
-      const optCustom = document.createElement("option");
-      optCustom.value = "__custom__";
-      optCustom.textContent = L.customDots || "\u81EA\u5B9A\u4E49\u2026";
-      quick.append(optCustom);
-      const cur = cfg.overrides && cfg.overrides[nb.id];
-      if (cur && typeof cur === "object" && cur.h !== void 0 && cur.s === void 0) {
-        cur.s = Math.round(cfg.chroma * 100);
-        cur.l = cfg.light;
-        if (typeof cur.a !== "number") cur.a = Math.round(cfg.chroma * 100);
-      }
-      const hslOf = (o) => typeof o === "number" ? { h: o } : o || null;
-      const applyOverride = (val) => {
-        if (val === null) delete cfg.overrides[nb.id];
-        else cfg.overrides[nb.id] = val;
-        persistSoon();
-        walkAllNow();
+  };
+  buildList();
+  const openNbEditor = (nb) => {
+    const d = document.createElement("div");
+    d.style.cssText = "display:flex;flex-direction:column;gap:2px";
+    const head = document.createElement("div");
+    head.style.cssText = "display:flex;align-items:center;gap:8px;margin-bottom:6px";
+    const dot = document.createElement("span");
+    dot.style.cssText = "width:16px;height:16px;border-radius:50%;border:1px solid var(--b3-border-color)";
+    const title = document.createElement("b");
+    title.textContent = nb.name;
+    head.append(dot, title);
+    d.append(head);
+    const modeRow = document.createElement("div");
+    modeRow.style.cssText = "display:flex;align-items:center;gap:8px;margin:4px 0 8px;min-width:0";
+    const quick = document.createElement("select");
+    quick.className = "b3-select";
+    quick.style.cssText = "width:110px;font-size:12px";
+    const optAuto = document.createElement("option");
+    optAuto.value = "";
+    optAuto.textContent = L.auto || "\u81EA\u52A8";
+    const optCustom = document.createElement("option");
+    optCustom.value = "__custom__";
+    optCustom.textContent = L.customDots || "\u81EA\u5B9A\u4E49\u2026";
+    quick.append(optAuto, optCustom);
+    const swatch = document.createElement("input");
+    swatch.type = "color";
+    swatch.className = "b3-color-picker";
+    swatch.style.cssText = "width:34px;height:26px;padding:0;border:1px solid var(--b3-border-color);background:transparent;cursor:pointer";
+    modeRow.append(quick, swatch);
+    d.append(modeRow);
+    const mkNbSlider = (label, getVal, setVal) => {
+      const box = document.createElement("div");
+      box.style.cssText = "display:flex;align-items:center;gap:6px;margin:3px 0";
+      const nm = document.createElement("span");
+      nm.style.cssText = "font-size:12px;width:56px;flex-shrink:0;opacity:.8";
+      nm.textContent = label;
+      const sl = document.createElement("input");
+      sl.type = "range";
+      sl.className = "b3-slider";
+      sl.min = "5";
+      sl.max = "100";
+      sl.style.flex = "1";
+      sl.style.minWidth = "0";
+      const vb = document.createElement("b");
+      vb.style.cssText = "font-size:12px;width:38px;text-align:right";
+      const refresh = () => {
+        const v = getVal();
+        sl.value = String(v);
+        vb.textContent = v + "%";
       };
-      const syncUI = () => {
-        const c = hslOf(cfg.overrides && cfg.overrides[nb.id]);
-        const isCustom = !!(c && typeof c === "object" && c.s !== void 0);
-        quick.value = isCustom ? "__custom__" : "";
-        const hh = c ? c.h : hashHue(nb.id);
-        const ss = c && c.s !== void 0 ? c.s : Math.round(cfg.chroma * 100);
-        const ll = c && c.l !== void 0 ? c.l : cfg.light;
-        swatch.value = hslToHex(hh, ss / 100, ll / 100);
-      };
-      swatch.addEventListener("input", () => {
-        const { h, ss, ll } = hexToHsl(swatch.value);
-        applyOverride({ h: Math.round(h), s: Math.round(ss * 100), l: Math.round(ll * 100), a: 100 });
-        syncUI();
-        syncCustomPanel();
-        if (typeof syncFoldMark === "function") syncFoldMark();
+      sl.addEventListener("input", () => {
+        setVal(parseInt(sl.value, 10));
+        vb.textContent = sl.value + "%";
+        commit();
       });
-      const folded = { on: false };
-      const customBox = document.createElement("div");
-      customBox.style.cssText = "display:none;padding:2px 0 6px 0;margin-top:2px;border-top:1px dashed var(--b3-border-color)";
-      const mkNbSlider = (label, key, min, max, getVal, setVal, fmt) => {
-        const box = document.createElement("div");
-        box.style.cssText = "display:flex;align-items:center;gap:6px;margin:3px 0";
-        const nm = document.createElement("span");
-        nm.style.cssText = "font-size:12px;width:56px;flex-shrink:0;opacity:.8";
-        nm.textContent = label;
-        const sl = document.createElement("input");
-        sl.type = "range";
-        sl.className = "b3-slider";
-        sl.min = String(min);
-        sl.max = String(max);
-        sl.style.flex = "1";
-        const vb = document.createElement("b");
-        vb.style.cssText = "font-size:12px;width:38px;text-align:right";
-        const refresh = () => {
-          const v = getVal();
-          sl.value = String(v);
-          vb.textContent = fmt(v);
-        };
-        sl.addEventListener("input", () => {
-          setVal(parseInt(sl.value, 10));
-          vb.textContent = fmt(parseInt(sl.value, 10));
-          persistSoon();
-          walkAllNow();
-        });
-        refresh();
-        box.append(nm, sl, vb);
-        return box;
-      };
-      const curOv = () => {
-        const o = cfg.overrides && cfg.overrides[nb.id];
-        if (!o || typeof o === "number" || typeof o.s !== "number") return null;
-        return o;
-      };
-      const sAlpha2 = mkNbSlider(
-        L.alpha || "\u6D53\u5EA6",
-        "alpha",
-        5,
-        100,
-        () => {
-          const o = curOv();
-          return o && typeof o.a === "number" ? o.a : 100;
-        },
-        (v) => {
-          const o = curOv();
-          if (o) o.a = v;
-        },
-        (v) => v + "%"
-      );
-      const sChroma2 = mkNbSlider(
-        L.chroma || "\u9971\u548C",
-        "chroma",
-        0,
-        100,
-        () => {
-          const o = curOv();
-          return o ? o.s : 0;
-        },
-        (v) => {
-          const o = curOv();
-          if (o) o.s = v;
-        },
-        (v) => v + "%"
-      );
-      const sLight2 = mkNbSlider(
-        L.light || "\u660E\u5EA6",
-        "light",
-        0,
-        100,
-        () => {
-          const o = curOv();
-          return o ? o.l : 62;
-        },
-        (v) => {
-          const o = curOv();
-          if (o) o.l = v;
-        },
-        (v) => v + "%"
-      );
-      const clearBtn = document.createElement("button");
-      clearBtn.className = "b3-button b3-button--outline";
-      clearBtn.style.cssText = "font-size:12px;margin-top:4px";
-      clearBtn.textContent = L.clearCustom || "\u56DE\u5230\u81EA\u52A8";
-      clearBtn.onclick = (ev) => {
-        ev.stopPropagation();
-        applyOverride(null);
-        syncUI();
-        syncCustomPanel();
-        syncFoldMark();
-      };
-      customBox.append(sAlpha2, sChroma2, sLight2, clearBtn);
-      const syncCustomPanel = () => {
+      box.append(nm, sl, vb);
+      box._cftreeRefresh = refresh;
+      return box;
+    };
+    const curOv = () => {
+      const o = cfg.overrides && cfg.overrides[nb.id];
+      if (!o || typeof o === "number" || typeof o.s !== "number") return null;
+      return o;
+    };
+    const sAlpha2 = mkNbSlider(
+      L.alpha || "\u6D53\u5EA6",
+      () => {
         const o = curOv();
-        customBox.style.display = o && !folded.on ? "block" : "none";
-        if (o && !folded.on) {
-          [sAlpha2, sChroma2, sLight2].forEach((slBox) => {
-            const sl = slBox.querySelector("input");
-            sl.dispatchEvent(new Event("input"));
-          });
-        }
-      };
-      row.addEventListener("click", (ev) => {
-        if (!curOv()) return;
-        if (ev.target.closest("select, input")) return;
-        folded.on = !folded.on;
-        customBox.style.display = folded.on ? "none" : "block";
-      });
+        return o && typeof o.a === "number" ? o.a : 100;
+      },
+      (v) => {
+        const o = curOv();
+        if (o) o.a = v;
+      }
+    );
+    const sChroma2 = mkNbSlider(
+      L.chroma || "\u9971\u548C",
+      () => {
+        const o = curOv();
+        return o ? o.s : Math.round(cfg.chroma * 100);
+      },
+      (v) => {
+        const o = curOv();
+        if (o) o.s = v;
+      }
+    );
+    const sLight2 = mkNbSlider(
+      L.light || "\u660E\u5EA6",
+      () => {
+        const o = curOv();
+        return o ? o.l : cfg.light;
+      },
+      (v) => {
+        const o = curOv();
+        if (o) o.l = v;
+      }
+    );
+    const sliders = [sAlpha2, sChroma2, sLight2];
+    d.append(...sliders);
+    const clearBtn = document.createElement("button");
+    clearBtn.className = "b3-button b3-button--outline";
+    clearBtn.style.cssText = "font-size:12px;margin-top:8px;align-self:flex-start";
+    clearBtn.textContent = L.clearCustom || "\u56DE\u5230\u81EA\u52A8";
+    clearBtn.onclick = () => {
+      applyOverride(null);
+    };
+    d.append(clearBtn);
+    const commit = () => {
+      persistSoon();
+      walkAllNow();
       syncUI();
-      syncCustomPanel();
-      rowRefreshers.push(() => {
-        syncFoldMark();
-        syncUI();
-        syncCustomPanel();
-      });
-      quick.addEventListener("change", () => {
-        if (quick.value === "__custom__") {
-          if (!curOv()) {
-            const base = hslOf(cfg.overrides && cfg.overrides[nb.id]);
-            const h0 = base ? base.h : hashHue(nb.id);
-            applyOverride({ h: h0, s: Math.round(cfg.chroma * 100), l: cfg.light, a: 100 });
-          }
-        } else {
-          applyOverride(null);
-        }
-        syncUI();
-        syncCustomPanel();
-      });
-      const syncFoldMark = () => {
-        name.textContent = (curOv() ? folded.on ? "\u25B8 " : "\u25BE " : "") + nb.name;
-      };
-      row.addEventListener("click", () => setTimeout(syncFoldMark, 0));
-      syncFoldMark();
-      ctrl.append(quick, swatch);
-      row.append(name, ctrl);
-      const wrap = document.createElement("div");
-      wrap.append(row, customBox);
-      nbBox.append(wrap);
+      refreshListDots();
+    };
+    const applyOverride = (val) => {
+      if (val === null) delete cfg.overrides[nb.id];
+      else cfg.overrides[nb.id] = val;
+      commit();
+    };
+    const syncUI = () => {
+      const o = curOv();
+      quick.value = o ? "__custom__" : "";
+      const hex = curColorHex(nb.id);
+      swatch.value = hex;
+      dot.style.background = hex;
+      clearBtn.style.display = o ? "" : "none";
+      sliders.forEach((b) => b._cftreeRefresh());
+    };
+    swatch.addEventListener("input", () => {
+      const { h, ss, ll } = hexToHsl(swatch.value);
+      applyOverride({ h: Math.round(h), s: Math.round(ss * 100), l: Math.round(ll * 100), a: curOv() ? curOv().a : 100 });
     });
-  }).catch(() => {
-    nbBox.textContent = L.noNotebooks || "\uFF08\u672A\u83B7\u53D6\u5230\u7B14\u8BB0\u672C\uFF09";
-  });
-  const setting = new siyuan2.Setting({ width: "560px", height: "auto" });
+    quick.addEventListener("change", () => {
+      if (quick.value === "__custom__") {
+        if (!curOv()) {
+          const base = descOf(nb.id);
+          applyOverride({ h: base.h, s: Math.round(cfg.chroma * 100), l: cfg.light, a: 100 });
+        }
+      } else {
+        applyOverride(null);
+      }
+    });
+    syncUI();
+    openEditors.push(syncUI);
+    const back = document.createElement("div");
+    back.style.cssText = "display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 0 10px;border-bottom:1px solid var(--b3-border-color);margin-bottom:8px;font-size:13px;opacity:.8";
+    back.innerHTML = '<svg style="width:14px;height:14px"><use xlink:href="#iconLeft"></use></svg>';
+    back.append(document.createTextNode(L.back || "\u8FD4\u56DE"));
+    back.onclick = () => {
+      unreg();
+      d.remove();
+      goKey("nb");
+    };
+    const unreg = () => {
+      const i = openEditors.indexOf(syncUI);
+      if (i >= 0) openEditors.splice(i, 1);
+    };
+    Object.values(pages).forEach((p) => {
+      p.li.style.background = "";
+      p.page.style.display = "none";
+    });
+    pages.nb.li.style.background = "var(--b3-list-item-hover, rgba(128,128,128,.12))";
+    d.prepend(back);
+    pageBox.append(d);
+  };
+  const setting = new siyuan2.Setting({ width: "560px", height: "76vh" });
   setting.addItem({ title: "", direction: "row", actionElement: container });
+  goKey("base");
   return setting;
 }
 
