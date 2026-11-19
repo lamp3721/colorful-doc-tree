@@ -304,26 +304,17 @@ function buildSetting(siyuan2, i18n) {
   const container = document.createElement("div");
   container.style.cssText = "width:100%;display:flex;flex-direction:column";
   const navBox = document.createElement("div");
-  navBox.className = "b3-list b3-list--background";
-  navBox.style.cssText = "margin:0 0 10px 0;border:1px solid var(--b3-border-color);border-radius:6px;flex-shrink:0";
+  navBox.style.cssText = "display:flex;gap:6px;margin:0 0 10px 0;flex-shrink:0";
   container.append(navBox);
   const pageBox = document.createElement("div");
-  pageBox.style.cssText = "flex:1;overflow-y:auto;min-height:0";
+  pageBox.style.cssText = "flex:1;overflow-y:auto;overflow-x:hidden;min-height:0";
   container.append(pageBox);
   const pages = {};
   let curPageKey = null;
   const mkNavRow = (key, label, mkPage) => {
     const li = document.createElement("div");
-    li.className = "b3-list-item";
-    li.style.cssText = "display:flex;align-items:center;gap:8px;padding:7px 10px;cursor:pointer;border-radius:4px;margin:1px 2px";
-    const txt = document.createElement("span");
-    txt.className = "b3-list-item__text";
-    txt.style.cssText = "font-size:13px;flex:1";
-    txt.textContent = label;
-    const arrow = document.createElement("span");
-    arrow.style.cssText = "flex-shrink:0;opacity:.5;display:flex";
-    arrow.innerHTML = '<svg style="width:14px;height:14px"><use xlink:href="#iconRight"></use></svg>';
-    li.append(txt, arrow);
+    li.style.cssText = "flex:1;display:flex;align-items:center;justify-content:center;padding:7px 4px;cursor:pointer;border:1px solid var(--b3-border-color);border-radius:6px;font-size:13px;user-select:none;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis";
+    li.textContent = label;
     const page = document.createElement("div");
     page.style.display = "none";
     pageBox.append(page);
@@ -332,9 +323,11 @@ function buildSetting(siyuan2, i18n) {
     li.onclick = () => {
       Object.values(pages).forEach((p) => {
         p.li.style.background = "";
+        p.li.style.color = "";
         p.page.style.display = "none";
       });
-      li.style.background = "var(--b3-list-item-hover, rgba(128,128,128,.12))";
+      li.style.background = "var(--b3-list-item-hover, rgba(128,128,128,.15))";
+      li.style.color = "var(--b3-theme-primary, #3575f0)";
       page.style.display = "";
       curPageKey = key;
     };
@@ -590,7 +583,7 @@ function buildSetting(siyuan2, i18n) {
     head.append(dot, title);
     d.append(head);
     const modeRow = document.createElement("div");
-    modeRow.style.cssText = "display:flex;align-items:center;gap:8px;margin:4px 0 8px";
+    modeRow.style.cssText = "display:flex;align-items:center;gap:8px;margin:4px 0 8px;min-width:0";
     const quick = document.createElement("select");
     quick.className = "b3-select";
     quick.style.cssText = "width:110px;font-size:12px";
@@ -619,6 +612,7 @@ function buildSetting(siyuan2, i18n) {
       sl.min = "5";
       sl.max = "100";
       sl.style.flex = "1";
+      sl.style.minWidth = "0";
       const vb = document.createElement("b");
       vb.style.cssText = "font-size:12px;width:38px;text-align:right";
       const refresh = () => {
