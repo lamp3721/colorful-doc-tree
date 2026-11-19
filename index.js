@@ -68,8 +68,29 @@ function toggle() {
 }
 
 // src/shared/color.js
-var HUES = [15, 45, 90, 140, 170, 200, 230, 262, 298, 335];
-var HUE_NAMES = { 15: "\u6A59", 45: "\u9EC4", 90: "\u9EC4\u7EFF", 140: "\u7EFF", 170: "\u9752\u7EFF", 200: "\u9752", 230: "\u84DD", 262: "\u975B", 298: "\u7D2B", 335: "\u73AB\u7EA2" };
+var HUES = [12, 30, 48, 66, 84, 102, 120, 138, 156, 174, 192, 210, 228, 246, 264, 282, 300, 318, 336, 354];
+var HUE_NAMES = {
+  12: "\u6A59",
+  30: "\u6A59\u9EC4",
+  48: "\u9EC4",
+  66: "\u9EC4\u7EFF",
+  84: "\u8349\u7EFF",
+  102: "\u7EFF",
+  120: "\u6DF1\u7EFF",
+  138: "\u58A8\u7EFF",
+  156: "\u9752\u7EFF",
+  174: "\u9752",
+  192: "\u5929\u9752",
+  210: "\u851A\u84DD",
+  228: "\u84DD",
+  246: "\u54C1\u84DD",
+  264: "\u975B",
+  282: "\u84DD\u7D2B",
+  300: "\u7D2B",
+  318: "\u7EDB\u7D2B",
+  336: "\u73AB\u7EA2",
+  354: "\u54C1\u7EA2"
+};
 function hashHue(key) {
   let h = 5381;
   for (let i = 0; i < key.length; i++) h = (h << 5) + h + key.charCodeAt(i) >>> 0;
