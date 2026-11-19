@@ -234,12 +234,16 @@ export function buildSetting(siyuan, i18n) {
     };
     reRow.append(reBtn);
     gBase.append(reRow);
-    // ── 分组三：笔记本颜色 ──
-    const gNb = mkGroup(L.nbColors || "笔记本颜色", true);
-    // 批量恢复（v0.6.4）：一键清空所有 override 回自动——修复"误选自定义
-    // 全套落盘"后的恢复路径（逐本选回自动太折磨）
+    // ── 笔记本颜色（v0.7.10 导航页式）──：官方 entryVisibility 列表形态
+    // （b3-list-item + 色点 + 右箭头），点一下打开该本的独立编辑窗——
+    // 主面板不再内嵌长列表+嵌套参数区（issue #2 截断与误触的温床）。
+    const nbBox = document.createElement("div");
+    nbBox.className = "b3-list b3-list--background";
+    nbBox.style.cssText = "margin:4px 0;border:1px solid var(--b3-border-color);border-radius:6px;max-height:288px;overflow-y:auto";
+    container.append(nbBox);
+    // 全部恢复自动（v0.6.4 语义保留）：清空 override 回自动
     const resetRow = document.createElement("div");
-    resetRow.style.marginBottom = "8px";
+    resetRow.style.cssText = "margin-top:6px";
     const resetBtn = document.createElement("button");
     resetBtn.className = "b3-button b3-button--outline";
     resetBtn.style.fontSize = "12px";
@@ -249,212 +253,202 @@ export function buildSetting(siyuan, i18n) {
         applyStyle();
         walkAllNow();
         persistSoon();
-        // 通知全部行刷新（v0.6.5：下拉回"自动"、参数区收起）
-        nbBox.dispatchEvent(new CustomEvent("cftree-rows-refresh"));
+        buildList();
+        refreshListDots();
     };
     resetRow.append(resetBtn);
-    gNb.append(resetRow);
-    const nbBox = document.createElement("div");
-    // 列表内部滚动上限（v0.4.3）：笔记本多时不许顶高面板——
-    // max-height 12 行（每行 26px 出头）+ 内部滚动；分组外的整体
-    // 70vh 上限仍兜底（设置→打开的面板本身）
-    nbBox.style.cssText = "display:flex;flex-direction:column;gap:4px;max-height:288px;overflow-y:auto";
-    gNb.append(nbBox);
-    // 行刷新钩子（v0.6.5）：行构建时注册自己的刷新闭包，"全部恢复自动"后
-    // 派发事件逐行调用——行 UI（下拉/参数区）与 override 状态保持同步。
-    // v0.6.5 首版漏了本声明（替换未写盘）→ 行构建 TDZ 崩 → 笔记本列表空白
-    const rowRefreshers = [];
-    nbBox.addEventListener("cftree-rows-refresh", () => {
-        rowRefreshers.forEach((fn) => { try { fn(); } catch (e) { console.error("[cftree] 行刷新失败:", e); } });
-    });
-    fetch("/api/notebook/lsNotebooks", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
-        .then((r) => r.json())
-        .then((data) => {
-            const notebooks = (data && data.data && data.data.notebooks) || [];
-            if (!notebooks.length) { nbBox.textContent = L.noNotebooks || "（未获取到笔记本）"; return; }
-            notebooks.forEach((nb) => {
-                if (nb.closed) return;
-                const row = document.createElement("div");
-                row.style.cssText = "display:flex;justify-content:space-between;align-items:center";
-                const name = document.createElement("span");
-                name.style.cssText = "font-size:12px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
-                name.textContent = nb.name;
-                // v0.4.4：任意颜色——原生色板 + 十档快捷色 + 自动。
-                // 存 HSL（{h,s,l}）：色板挑的色完整还原；十档快捷色只存 {h}
-                // （s/l 走全局滑条，跟整体风格协调）
-                const ctrl = document.createElement("div");
-                ctrl.style.cssText = "display:flex;align-items:center;gap:4px";
-                // v0.4.12：自定义色时不再显示快捷色下拉（"自动(哈希)"占位
-                // 对已自定义的条目是误导）——改显示"自定义"徽标 + swatch；
-                const swatch = document.createElement("input");
-                swatch.type = "color";
-                swatch.className = "b3-color-picker";
-                swatch.style.cssText = "width:26px;height:22px;padding:0;border:1px solid var(--b3-border-color);background:transparent;cursor:pointer";
-                const quick = document.createElement("select");
-                quick.className = "b3-select";
-                quick.style.cssText = "width:90px;font-size:12px";
-                const optAuto = document.createElement("option");
-                optAuto.value = "";
-                optAuto.textContent = L.auto || "自动";
-                quick.append(optAuto);
-                // v0.7.5：快捷色档位撤下（用户定夺：选了颜色没啥用）——自动内部
-                // 本就是 20 档轮转，手动指定走"自定义…"色板；下拉只剩两态
-                const optCustom = document.createElement("option");
-                optCustom.value = "__custom__";
-                optCustom.textContent = L.customDots || "自定义…";
-                quick.append(optCustom);
-                const cur = cfg.overrides && cfg.overrides[nb.id];
-                // 旧版快捷色 override（{h} 裸色相）迁移为自定义全套——沿用
-                // 当前全局质感，视觉近似不变，不再出现"下拉两态都对不上"的孤儿态
-                if (cur && typeof cur === "object" && cur.h !== undefined && cur.s === undefined) {
-                    cur.s = Math.round(cfg.chroma * 100);
-                    cur.l = cfg.light;
-                    if (typeof cur.a !== "number") cur.a = Math.round(cfg.chroma * 100);
-                }
-                const hslOf = (o) => typeof o === "number" ? { h: o } : (o || null);
-                const applyOverride = (val) => {
-                    if (val === null) delete cfg.overrides[nb.id];
-                    else cfg.overrides[nb.id] = val;
-                    persistSoon();
-                    walkAllNow();
-                };
-                const syncUI = () => {
-                    const c = hslOf(cfg.overrides && cfg.overrides[nb.id]);
-                    const isCustom = !!(c && typeof c === "object" && c.s !== undefined);
-                    // v0.7.5 下拉两态：自动 / 自定义…（快捷档已撤）
-                    quick.value = isCustom ? "__custom__" : "";
-                    // swatch 初值：override 的 HSL → hex；无 override 显示全局公式色
-                    const hh = c ? c.h : hashHue(nb.id);
-                    const ss = c && c.s !== undefined ? c.s : Math.round(cfg.chroma * 100);
-                    const ll = c && c.l !== undefined ? c.l : cfg.light;
-                    swatch.value = hslToHex(hh, ss / 100, ll / 100);
-                };
+    container.append(resetRow);
 
-                swatch.addEventListener("input", () => {
-                    const { h, ss, ll } = hexToHsl(swatch.value);
-                    // a=1：自定义色所见即所得（v0.4.8 用户反馈"纯红变粉"——
-                    // 全局 14% 透明度稀释了色板色，违背"我就要这个色"的语义）
-                    applyOverride({ h: Math.round(h), s: Math.round(ss * 100), l: Math.round(ll * 100), a: 100 });
-                    syncUI();
-                    syncCustomPanel();
-                    if (typeof syncFoldMark === "function") syncFoldMark();
+    // 一本的颜色解析（walker descOf 同语义的独立版）：override → {h,s?,l?,a?}，
+    // 自动 → 哈希档 + 全局质感。显示与编辑都用它。
+    const descOf = (nbid) => {
+        const ov = cfg.overrides && Object.prototype.hasOwnProperty.call(cfg.overrides, nbid)
+            ? cfg.overrides[nbid] : null;
+        if (ov) return typeof ov === "number" ? { h: ov } : ov;
+        let h = hashHue("notebook:" + nbid + (cfg.shuffleSeed ? "#" + cfg.shuffleSeed : ""));
+        if (typeof cfg.__baseHue === "number") {
+            h = (cfg.__baseHue + (HUES.indexOf(h) - HUES.indexOf(HUES.reduce((a, b) => Math.abs(b - cfg.__baseHue) < Math.abs(a - cfg.__baseHue) ? b : a, HUES[0])) + 5) * (360 / HUES.length) + 36000) % 360;
+        }
+        return { h: h };
+    };
+    const curColorHex = (nbid) => {
+        const d = descOf(nbid);
+        const hh = d.h;
+        const ss = typeof d.s === "number" ? d.s : Math.round(cfg.chroma * 100);
+        const ll = typeof d.l === "number" ? d.l : cfg.light;
+        return hslToHex(hh, ss / 100, ll / 100);
+    };
+
+    const buildList = () => {
+        nbBox.textContent = "";
+        fetch("/api/notebook/lsNotebooks", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
+            .then((r) => r.json())
+            .then((data) => {
+                const notebooks = (data && data.data && data.data.notebooks) || [];
+                if (!notebooks.length) { nbBox.textContent = L.noNotebooks || "（未获取到笔记本）"; return; }
+                notebooks.forEach((nb) => {
+                    if (nb.closed) return;
+                    const li = document.createElement("div");
+                    li.className = "b3-list-item";
+                    li.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 8px;cursor:pointer;border-radius:4px;margin:1px 2px";
+                    // 色点：当前生效色（override 或自动哈希）所见即所得
+                    const dot = document.createElement("span");
+                    dot.style.cssText = "width:14px;height:14px;border-radius:50%;flex-shrink:0;border:1px solid var(--b3-border-color)";
+                    const name = document.createElement("span");
+                    name.className = "b3-list-item__text";
+                    name.style.cssText = "font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1";
+                    const isCustom = !!(cfg.overrides && cfg.overrides[nb.id]);
+                    const customBadge = document.createElement("span");
+                    customBadge.textContent = isCustom ? (L.customDots || "自定义") : (L.auto || "自动");
+                    customBadge.style.cssText = "font-size:11px;opacity:.6;flex-shrink:0";
+                    // 官方导航箭头（entryVisibility location-arrow 同形态）
+                    const arrow = document.createElement("span");
+                    arrow.style.cssText = "flex-shrink:0;opacity:.5;display:flex";
+                    arrow.innerHTML = '<svg style="width:14px;height:14px"><use xlink:href="#iconRight"></use></svg>';
+                    li.append(dot, name, customBadge, arrow);
+                    li.onclick = () => openNbEditor(nb);
+                    nbBox.append(li);
+                    // 色点随时反映当前态（打开编辑窗改动后也要刷）
+                    const sync = () => {
+                        dot.style.background = curColorHex(nb.id);
+                        customBadge.textContent = cfg.overrides && cfg.overrides[nb.id] ? (L.customDots || "自定义") : (L.auto || "自动");
+                    };
+                    li._cftreeSync = sync;
+                    sync();
                 });
-                // v0.4.11：自定义色专属参数区可折叠——点条目行切换展开/收起
-                // （v0.4.9 是选色即常驻展开，用户要能收起）。仅自定义色时可折，
-                // 快捷色/自动时整体隐藏。结构：wrap=row(可点)+paramBox(显隐由折叠态定)
-                const folded = { on: false };
-                const customBox = document.createElement("div");
-                customBox.style.cssText = "display:none;padding:2px 0 6px 0;margin-top:2px;border-top:1px dashed var(--b3-border-color)";
-                const mkNbSlider = (label, key, min, max, getVal, setVal, fmt) => {
-                    const box = document.createElement("div");
-                    box.style.cssText = "display:flex;align-items:center;gap:6px;margin:3px 0";
-                    const nm = document.createElement("span");
-                    nm.style.cssText = "font-size:12px;width:56px;flex-shrink:0;opacity:.8";
-                    nm.textContent = label;
-                    const sl = document.createElement("input");
-                    sl.type = "range";
-                    sl.className = "b3-slider";
-                    sl.min = String(min);
-                    sl.max = String(max);
-                    sl.style.flex = "1";
-                    const vb = document.createElement("b");
-                    vb.style.cssText = "font-size:12px;width:38px;text-align:right";
-                    const refresh = () => { const v = getVal(); sl.value = String(v); vb.textContent = fmt(v); };
-                    sl.addEventListener("input", () => {
-                        setVal(parseInt(sl.value, 10));
-                        vb.textContent = fmt(parseInt(sl.value, 10));
-                        persistSoon();
-                        walkAllNow();
-                    });
-                    refresh();
-                    box.append(nm, sl, vb);
-                    return box;
-                };
-                const curOv = () => {
-                    const o = cfg.overrides && cfg.overrides[nb.id];
-                    if (!o || typeof o === "number" || typeof o.s !== "number") return null;
-                    return o;
-                };
-                const sAlpha = mkNbSlider(L.alpha || "浓度", "alpha", 5, 100,
-                    () => { const o = curOv(); return o && typeof o.a === "number" ? o.a : 100; },
-                    (v) => { const o = curOv(); if (o) o.a = v; },
-                    (v) => v + "%");
-                const sChroma = mkNbSlider(L.chroma || "饱和", "chroma", 0, 100,
-                    () => { const o = curOv(); return o ? o.s : 0; },
-                    (v) => { const o = curOv(); if (o) o.s = v; },
-                    (v) => v + "%");
-                const sLight = mkNbSlider(L.light || "明度", "light", 0, 100,
-                    () => { const o = curOv(); return o ? o.l : 62; },
-                    (v) => { const o = curOv(); if (o) o.l = v; },
-                    (v) => v + "%");
-                const clearBtn = document.createElement("button");
-                clearBtn.className = "b3-button b3-button--outline";
-                clearBtn.style.cssText = "font-size:12px;margin-top:4px";
-                clearBtn.textContent = L.clearCustom || "回到自动";
-                clearBtn.onclick = (ev) => {
-                    ev.stopPropagation();
-                    applyOverride(null);
-                    syncUI();
-                    syncCustomPanel();
-                    syncFoldMark();
-                };
-                customBox.append(sAlpha, sChroma, sLight, clearBtn);
-                const syncCustomPanel = () => {
-                    const o = curOv();
-                    // 无自定义色：参数区整体隐藏、折叠态复位；
-                    // 有：可折叠——folded.on 时收起（条目行仍可点开）
-                    customBox.style.display = (o && !folded.on) ? "block" : "none";
-                    if (o && !folded.on) {
-                        [sAlpha, sChroma, sLight].forEach((slBox) => {
-                            const sl = slBox.querySelector("input");
-                            sl.dispatchEvent(new Event("input"));
-                        });
-                    }
-                };
-                // 点条目行（名字区）切换折叠——有自定义色才响应；
-                // 控件点击不冒泡误触发（select/swatch 上 stopPropagation）
-                row.addEventListener("click", (ev) => {
-                    if (!curOv()) return;
-                    if (ev.target.closest("select, input")) return;
-                    folded.on = !folded.on;
-                    customBox.style.display = folded.on ? "none" : "block";
-                });
-                syncUI();
-                syncCustomPanel();
-                // 行刷新钩子注册（v0.6.5）："全部恢复自动"清空 override 后
-                // 逐行回调刷新下拉/参数区显示
-                rowRefreshers.push(() => { syncFoldMark(); syncUI(); syncCustomPanel(); });
-                // 唯一的下拉 change 处理（v0.5.1 曾短暂存在新旧两个监听器：
-                // 旧版先跑 parseInt("__custom__")=NaN 写坏 override）
-                quick.addEventListener("change", () => {
-                    if (quick.value === "__custom__") {
-                        // 进入自定义态：无完整自定义色时以当前显示色为起点
-                        // 造全套默认（哈希/已有色相 + 全局饱和/明度），参数区可调
-                        if (!curOv()) {
-                            const base = hslOf(cfg.overrides && cfg.overrides[nb.id]);
-                            const h0 = base ? base.h : hashHue(nb.id);
-                            applyOverride({ h: h0, s: Math.round(cfg.chroma * 100), l: cfg.light, a: 100 });
-                        }
-                    } else {
-                        applyOverride(null);            // 自动：清 override（快捷档已撤，无第三态）
-                    }
-                    syncUI();
-                    syncCustomPanel();
-                });
-                // 可折叠视觉暗示：有自定义色时条目名前加 ▸/▾
-                const syncFoldMark = () => {
-                    name.textContent = (curOv() ? (folded.on ? "▸ " : "▾ ") : "") + nb.name;
-                };
-                row.addEventListener("click", () => setTimeout(syncFoldMark, 0));
-                syncFoldMark();
-                ctrl.append(quick, swatch);
-                row.append(name, ctrl);
-                const wrap = document.createElement("div");
-                wrap.append(row, customBox);
-                nbBox.append(wrap);
-            });
-        })
-        .catch(() => { nbBox.textContent = L.noNotebooks || "（未获取到笔记本）"; });
+                refreshListDots();
+            })
+            .catch(() => { nbBox.textContent = L.noNotebooks || "（未获取到笔记本）"; });
+    };
+    // 打开中的编辑窗集合（v0.7.10）：批量恢复自动后，各窗的
+    // 下拉/色板/滑条要同步回自动态——旧结构的 rowRefreshers 同职责
+    const openEditors = [];
+    const refreshListDots = () => {
+        nbBox.querySelectorAll(".b3-list-item").forEach((li) => { if (li._cftreeSync) li._cftreeSync(); });
+        openEditors.forEach((fn) => { try { fn(); } catch (e) { console.error("[cftree] 编辑窗刷新失败:", e); } });
+    };
+    buildList();
+
+    // ── 独立编辑窗（点一下打开）：两态（自动/自定义…）+ 色板 + 三滑条 ──
+    const openNbEditor = (nb) => {
+        const d = document.createElement("div");
+        d.style.cssText = "display:flex;flex-direction:column;gap:2px";
+        const head = document.createElement("div");
+        head.style.cssText = "display:flex;align-items:center;gap:8px;margin-bottom:6px";
+        const dot = document.createElement("span");
+        dot.style.cssText = "width:16px;height:16px;border-radius:50%;border:1px solid var(--b3-border-color)";
+        const title = document.createElement("b");
+        title.textContent = nb.name;
+        head.append(dot, title);
+        d.append(head);
+        const modeRow = document.createElement("div");
+        modeRow.style.cssText = "display:flex;align-items:center;gap:8px;margin:4px 0 8px";
+        const quick = document.createElement("select");
+        quick.className = "b3-select";
+        quick.style.cssText = "width:110px;font-size:12px";
+        const optAuto = document.createElement("option");
+        optAuto.value = "";
+        optAuto.textContent = L.auto || "自动";
+        const optCustom = document.createElement("option");
+        optCustom.value = "__custom__";
+        optCustom.textContent = L.customDots || "自定义…";
+        quick.append(optAuto, optCustom);
+        const swatch = document.createElement("input");
+        swatch.type = "color";
+        swatch.className = "b3-color-picker";
+        swatch.style.cssText = "width:34px;height:26px;padding:0;border:1px solid var(--b3-border-color);background:transparent;cursor:pointer";
+        modeRow.append(quick, swatch);
+        d.append(modeRow);
+        const mkNbSlider = (label, getVal, setVal) => {
+            const box = document.createElement("div");
+            box.style.cssText = "display:flex;align-items:center;gap:6px;margin:3px 0";
+            const nm = document.createElement("span");
+            nm.style.cssText = "font-size:12px;width:56px;flex-shrink:0;opacity:.8";
+            nm.textContent = label;
+            const sl = document.createElement("input");
+            sl.type = "range";
+            sl.className = "b3-slider";
+            sl.min = "5"; sl.max = "100";
+            sl.style.flex = "1";
+            const vb = document.createElement("b");
+            vb.style.cssText = "font-size:12px;width:38px;text-align:right";
+            const refresh = () => { const v = getVal(); sl.value = String(v); vb.textContent = v + "%"; };
+            sl.addEventListener("input", () => { setVal(parseInt(sl.value, 10)); vb.textContent = sl.value + "%"; commit(); });
+            box.append(nm, sl, vb);
+            box._cftreeRefresh = refresh;
+            return box;
+        };
+        const curOv = () => {
+            const o = cfg.overrides && cfg.overrides[nb.id];
+            if (!o || typeof o === "number" || typeof o.s !== "number") return null;
+            return o;
+        };
+        const sAlpha = mkNbSlider(L.alpha || "浓度", () => { const o = curOv(); return o && typeof o.a === "number" ? o.a : 100; },
+            (v) => { const o = curOv(); if (o) o.a = v; });
+        const sChroma = mkNbSlider(L.chroma || "饱和", () => { const o = curOv(); return o ? o.s : Math.round(cfg.chroma * 100); },
+            (v) => { const o = curOv(); if (o) o.s = v; });
+        const sLight = mkNbSlider(L.light || "明度", () => { const o = curOv(); return o ? o.l : cfg.light; },
+            (v) => { const o = curOv(); if (o) o.l = v; });
+        const sliders = [sAlpha, sChroma, sLight];
+        d.append(...sliders);
+        const clearBtn = document.createElement("button");
+        clearBtn.className = "b3-button b3-button--outline";
+        clearBtn.style.cssText = "font-size:12px;margin-top:8px;align-self:flex-start";
+        clearBtn.textContent = L.clearCustom || "回到自动";
+        clearBtn.onclick = () => { applyOverride(null); };
+        d.append(clearBtn);
+        const commit = () => {
+            persistSoon();
+            walkAllNow();
+            syncUI();
+            refreshListDots();
+        };
+        const applyOverride = (val) => {
+            if (val === null) delete cfg.overrides[nb.id];
+            else cfg.overrides[nb.id] = val;
+            commit();
+        };
+        const syncUI = () => {
+            const o = curOv();
+            quick.value = o ? "__custom__" : "";
+            const hex = curColorHex(nb.id);
+            swatch.value = hex;
+            dot.style.background = hex;
+            clearBtn.style.display = o ? "" : "none";
+            sliders.forEach((b) => b._cftreeRefresh());
+        };
+        swatch.addEventListener("input", () => {
+            const { h, ss, ll } = hexToHsl(swatch.value);
+            applyOverride({ h: Math.round(h), s: Math.round(ss * 100), l: Math.round(ll * 100), a: curOv() ? curOv().a : 100 });
+        });
+        quick.addEventListener("change", () => {
+            if (quick.value === "__custom__") {
+                if (!curOv()) {
+                    const base = descOf(nb.id);
+                    applyOverride({ h: base.h, s: Math.round(cfg.chroma * 100), l: cfg.light, a: 100 });
+                }
+            } else {
+                applyOverride(null);
+            }
+        });
+        syncUI();
+        // 注册进批量刷新链；销毁时注销（窗关了不该再被刷）
+        openEditors.push(syncUI);
+        const dialog = new siyuan.Dialog({
+            title: (L.nbColor || "笔记本颜色") + " · " + nb.name,
+            content: "",
+            width: "380px",
+            height: "",
+        });
+        // content 走 DOM append（保持事件绑定），不给 HTML 字符串
+        dialog.element.querySelector(".b3-dialog__content").append(d);
+        dialog.element.querySelector(".b3-dialog__container").style.height = "auto";
+        const idx = openEditors.indexOf(syncUI);
+        dialog.destroy = ((orig) => function () {
+            if (idx >= 0) openEditors.splice(idx, 1);
+            orig.call(this);
+        })(dialog.destroy.bind(dialog));
+    };
     // 官方 Setting：单 row 项挂全宽容器（fn__block 不受 fn__size200 定宽挤压）
     // 高度 76vh（v0.7.9 修 #2 底部截断）：auto 跟随内容超屏时容器被裁
 // （b3-dialog__container 无视口上限，超出视口部分不可达），官方默认即 80vh
