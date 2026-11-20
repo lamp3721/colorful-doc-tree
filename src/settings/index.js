@@ -83,6 +83,9 @@ export function buildSetting(siyuan, i18n) {
     container.append(pageBox);
     const pages = {};   // key → {li, page}
     let curPageKey = null;
+    // 游离子页（笔记本调色页 v0.7.10 直挂 pageBox）的关闭钩子：
+    // 导航切页时必调——否则子页留在别的页里（用户实测 bug），重复点开还会叠多份
+    let closeSub = null;
     const mkNavRow = (key, label, mkPage) => {
         const li = document.createElement("div");
         li.style.cssText = "flex:1;display:flex;align-items:center;justify-content:center;padding:7px 4px;cursor:pointer;border:1px solid var(--b3-border-color);border-radius:6px;font-size:13px;user-select:none;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis";
@@ -93,6 +96,7 @@ export function buildSetting(siyuan, i18n) {
         pages[key] = { li, page };
         mkPage(page);
         li.onclick = () => {
+            if (closeSub) { closeSub(); closeSub = null; }   // 切页先关调色子页
             Object.values(pages).forEach((p) => { p.li.style.background = ""; p.li.style.color = ""; p.page.style.display = "none"; });
             li.style.background = "var(--b3-list-item-hover, rgba(128,128,128,.15))";
             li.style.color = "var(--b3-theme-primary, #3575f0)";
@@ -453,6 +457,7 @@ export function buildSetting(siyuan, i18n) {
                 applyOverride(null);
             }
         });
+        if (closeSub) { closeSub(); closeSub = null; }   // 已有子页先清（重复点开不叠）
         syncUI();
         // 注册进批量刷新链；离开该页时注销（页面不再显示就不该被刷）
         openEditors.push(syncUI);
@@ -462,11 +467,12 @@ export function buildSetting(siyuan, i18n) {
         back.style.cssText = "display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 0 10px;border-bottom:1px solid var(--b3-border-color);margin-bottom:8px;font-size:13px;opacity:.8";
         back.innerHTML = '<svg style="width:14px;height:14px"><use xlink:href="#iconLeft"></use></svg>';
         back.append(document.createTextNode(L.back || "返回"));
-        back.onclick = () => { unreg(); d.remove(); goKey("nb"); };
         const unreg = () => {
             const i = openEditors.indexOf(syncUI);
             if (i >= 0) openEditors.splice(i, 1);
         };
+        back.onclick = () => { if (closeSub) closeSub(); closeSub = null; goKey("nb"); };
+        closeSub = () => { unreg(); d.remove(); };
         // 借用 nb 导航页"选中"位：先移内容再挂（pageBox 一次只显示一页）
         Object.values(pages).forEach((p) => { p.li.style.background = ""; p.page.style.display = "none"; });
         pages.nb.li.style.background = "var(--b3-list-item-hover, rgba(128,128,128,.12))";

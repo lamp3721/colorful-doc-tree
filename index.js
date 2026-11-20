@@ -314,6 +314,7 @@ function buildSetting(siyuan2, i18n) {
   container.append(pageBox);
   const pages = {};
   let curPageKey = null;
+  let closeSub = null;
   const mkNavRow = (key, label, mkPage) => {
     const li = document.createElement("div");
     li.style.cssText = "flex:1;display:flex;align-items:center;justify-content:center;padding:7px 4px;cursor:pointer;border:1px solid var(--b3-border-color);border-radius:6px;font-size:13px;user-select:none;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis";
@@ -324,6 +325,10 @@ function buildSetting(siyuan2, i18n) {
     pages[key] = { li, page };
     mkPage(page);
     li.onclick = () => {
+      if (closeSub) {
+        closeSub();
+        closeSub = null;
+      }
       Object.values(pages).forEach((p) => {
         p.li.style.background = "";
         p.li.style.color = "";
@@ -714,20 +719,28 @@ function buildSetting(siyuan2, i18n) {
         applyOverride(null);
       }
     });
+    if (closeSub) {
+      closeSub();
+      closeSub = null;
+    }
     syncUI();
     openEditors.push(syncUI);
     const back = document.createElement("div");
     back.style.cssText = "display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 0 10px;border-bottom:1px solid var(--b3-border-color);margin-bottom:8px;font-size:13px;opacity:.8";
     back.innerHTML = '<svg style="width:14px;height:14px"><use xlink:href="#iconLeft"></use></svg>';
     back.append(document.createTextNode(L.back || "\u8FD4\u56DE"));
-    back.onclick = () => {
-      unreg();
-      d.remove();
-      goKey("nb");
-    };
     const unreg = () => {
       const i = openEditors.indexOf(syncUI);
       if (i >= 0) openEditors.splice(i, 1);
+    };
+    back.onclick = () => {
+      if (closeSub) closeSub();
+      closeSub = null;
+      goKey("nb");
+    };
+    closeSub = () => {
+      unreg();
+      d.remove();
     };
     Object.values(pages).forEach((p) => {
       p.li.style.background = "";
